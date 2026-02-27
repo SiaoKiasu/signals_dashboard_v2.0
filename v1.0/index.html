@@ -333,6 +333,30 @@
             border-color: var(--accent-blue);
             color: var(--accent-blue);
         }
+        .signal-buttons button.locked {
+            position: relative;
+            color: #9aa3b2;
+            border-color: #2b3240;
+            background: rgba(9, 12, 20, 0.72);
+            cursor: not-allowed;
+        }
+        .signal-buttons button.locked::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(0,0,0,0.45));
+            border-radius: 7px;
+            pointer-events: none;
+        }
+        .signal-buttons button.locked .tier-tag {
+            margin-left: 8px;
+            font-size: 10px;
+            color: #f8cb46;
+            border: 1px solid rgba(248,203,70,0.45);
+            border-radius: 999px;
+            padding: 1px 6px;
+            background: rgba(248,203,70,0.12);
+        }
 
         .signal-group {
             background-color: rgba(21, 25, 36, 0.55);
@@ -427,10 +451,25 @@
             height: 72vh;
             background-color: transparent;
             border-radius: 10px;
+            position: relative;
             padding: 0;
             box-sizing: border-box;
             box-shadow: none;
             border: none;
+        }
+        .chart-lock-mask {
+            position: absolute;
+            inset: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            background: rgba(7, 10, 16, 0.68);
+            backdrop-filter: blur(2px);
+            color: #d1d4dc;
+            font-size: 14px;
+            line-height: 1.6;
         }
 
         /* 覆盖 ECharts 默认 tooltip 样式以匹配深色主题 */
@@ -541,6 +580,13 @@
             signal9:  { name: 'CyclicalLG_D2U', category: 'cyclical_short', hasHighProb: false },
             signal18: { name: 'CrashMLP_DOWN',  category: 'crash_down',     hasHighProb: false },
         };
+        const TIER_RANK = { basic: 0, pro: 1, ultra: 2 };
+        const SIGNAL_REQUIRED_TIER = {
+            signal2: 'pro',
+            signal7: 'ultra',
+            signal9: 'ultra',
+            signal18: 'ultra',
+        };
 
         // 数据预处理：指定日期的 signal2 强制视为“触发(5)”而不是“高概率(3)”
         // 支持输入格式如 2026/2/18、2026-02-18、以及带时间的字符串
@@ -564,6 +610,7 @@
         }
 
         let currentSignal = ALL_SIGNALS[0];
+        let currentTier = 'basic';
         let rawData = [];
         // 用于快速通过日期查找数据的 Map，方便 Tooltip 渲染
         let dataMap = new Map();
@@ -647,13 +694,51 @@
         const CATEGORY_ORDER = ['crash_down', 'surge_up', 'cyclical_short'];
         let currentCategory = (SIGNAL_CONFIG[currentSignal] || {}).category || CATEGORY_ORDER[0];
 
+        function hasSignalPermission(signalKey) {
+            return availableSignals.includes(signalKey);
+        }
+
+        function requiredTierForSignal(signalKey) {
+            return SIGNAL_REQUIRED_TIER[signalKey] || 'ultra';
+        }
+
+        function showChartLockMask(requiredTier) {
+            const container = document.getElementById('chart-container');
+            if (!container) return;
+            let mask = document.getElementById('chart-lock-mask');
+            if (!mask) {
+                mask = document.createElement('div');
+                mask.id = 'chart-lock-mask';
+                mask.className = 'chart-lock-mask';
+                container.appendChild(mask);
+            }
+            const tierLabel = String(requiredTier || 'ultra').toUpperCase();
+            mask.innerHTML = `该信号仅对 <b>${tierLabel}</b> 会员开放<br/>请升级会员后查看详情`;
+        }
+
+        function hideChartLockMask() {
+            const mask = document.getElementById('chart-lock-mask');
+            if (mask) mask.remove();
+        }
+
         function renderChart(signalKey) {
             currentSignal = signalKey;
             
             // 更新按钮 UI
             document.querySelectorAll('#signal-buttons button').forEach(btn => {
-                btn.className = btn.dataset.signal === signalKey ? 'active' : '';
+                const isLocked = btn.dataset.locked === '1';
+                btn.className = '';
+                if (isLocked) btn.classList.add('locked');
+                if (btn.dataset.signal === signalKey) btn.classList.add('active');
             });
+
+            if (!hasSignalPermission(signalKey)) {
+                const required = requiredTierForSignal(signalKey);
+                chart.clear();
+                showChartLockMask(required);
+                return;
+            }
+            hideChartLockMask();
 
             const dates = [];
             const prices = [];
@@ -887,13 +972,25 @@
             if (!el) return;
             el.innerHTML = '';
 
-            const members = availableSignals.filter(sig => (SIGNAL_CONFIG[sig] || {}).category === currentCategory);
+            const members = ALL_SIGNALS.filter(sig => (SIGNAL_CONFIG[sig] || {}).category === currentCategory);
             members.forEach(sig => {
                 const btn = document.createElement('button');
-                btn.innerText = (SIGNAL_CONFIG[sig] && SIGNAL_CONFIG[sig].name) ? SIGNAL_CONFIG[sig].name : sig.toUpperCase();
+                const name = (SIGNAL_CONFIG[sig] && SIGNAL_CONFIG[sig].name) ? SIGNAL_CONFIG[sig].name : sig.toUpperCase();
+                const canView = hasSignalPermission(sig);
+                const required = requiredTierForSignal(sig);
+                btn.innerHTML = canView ? name : `${name}<span class="tier-tag">${required.toUpperCase()}</span>`;
                 btn.dataset.signal = sig;
-                btn.className = (sig === currentSignal) ? 'active' : '';
-                btn.onclick = () => renderChart(sig);
+                btn.dataset.locked = canView ? '0' : '1';
+                if (!canView) btn.title = `该信号需要 ${required.toUpperCase()} 会员`;
+                btn.className = '';
+                if (!canView) btn.classList.add('locked');
+                if (sig === currentSignal) btn.classList.add('active');
+                btn.onclick = () => {
+                    renderChart(sig);
+                    if (!canView) {
+                        alert(`该信号需要 ${required.toUpperCase()} 会员权限`);
+                    }
+                };
                 el.appendChild(btn);
             });
 
@@ -904,17 +1001,10 @@
         }
 
         function initButtons() {
-            if (!availableSignals.length) {
-                document.getElementById('signal-buttons').innerHTML = '';
-                document.getElementById('chart-container').innerHTML =
-                    `<div style="color:#f8cb46; text-align:center; margin-top:20%; font-size:14px;">
-                        当前账号没有可展示的信号，请联系管理员配置会员权限。
-                    </div>`;
-                return;
-            }
             // 初始分类跟随默认信号
-            if (!availableSignals.includes(currentSignal)) {
-                currentSignal = availableSignals[0];
+            const firstEnabled = availableSignals[0] || ALL_SIGNALS[0];
+            if (!ALL_SIGNALS.includes(currentSignal)) {
+                currentSignal = firstEnabled;
             }
             currentCategory = (SIGNAL_CONFIG[currentSignal] || {}).category || CATEGORY_ORDER[0];
             renderCategoryTabs();
@@ -958,11 +1048,12 @@
 
                 const cutoff = new Date('2022-11-11T00:00:00');
                 const list = (json.data.signal_list || []);
-                if (Array.isArray(json.allowed_signals) && json.allowed_signals.length) {
+                if (Array.isArray(json.allowed_signals)) {
                     availableSignals = ALL_SIGNALS.filter(sig => json.allowed_signals.includes(sig));
                 } else {
                     availableSignals = ALL_SIGNALS.slice();
                 }
+                currentTier = json.tier || 'basic';
 
                 // 1) 先做信号值改写（画图前）
                 list.forEach(item => {
@@ -984,7 +1075,7 @@
                 });
                 
                 initButtons();
-                renderChart(availableSignals[0]);
+                renderChart(availableSignals[0] || ALL_SIGNALS[0]);
 
                 // Portal top cards (independent from chart)
                 renderMarketSnapshot();
@@ -996,7 +1087,7 @@
                 renderAuth();
                 document.getElementById('chart-container').innerHTML = 
                     `<div style="color:#f23645; text-align:center; margin-top:20%; font-size:14px;">
-                        数据加载失败：请先检查后端接口与环境变量（SESSION_SECRET/KV）是否已生效。
+                        数据加载失败：请先检查后端接口与环境变量（SESSION_SECRET/MONGODB）是否已生效。
                     </div>`;
             }
         }

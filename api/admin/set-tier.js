@@ -45,10 +45,10 @@ module.exports = async (req, res) => {
       res.end(JSON.stringify({ error: "invalid_discord_user_id" }));
       return;
     }
-    if (tier !== "basic" && tier !== "pro") {
+    if (tier !== "basic" && tier !== "pro" && tier !== "ultra") {
       res.statusCode = 400;
       res.setHeader("Content-Type", "application/json; charset=utf-8");
-      res.end(JSON.stringify({ error: "invalid_tier", allowed: ["basic", "pro"] }));
+      res.end(JSON.stringify({ error: "invalid_tier", allowed: ["basic", "pro", "ultra"] }));
       return;
     }
 

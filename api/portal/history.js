@@ -12,26 +12,6 @@ const ALL_SIGNALS = ["signal2", "signal7", "signal9", "signal18"];
 const HISTORY_COLLECTION = process.env.MONGODB_HISTORY_COLLECTION || "portal_data";
 const HISTORY_DOC_ID = process.env.MONGODB_HISTORY_DOC_ID || "signal_history";
 
-function parseBasicAllowedSignalsFromEnv() {
-  const raw = String(process.env.BASIC_ALLOWED_SIGNALS || "").trim();
-  if (!raw) return ["signal2"];
-
-  const list = raw
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  const uniq = [];
-  const seen = new Set();
-  for (const k of list) {
-    if (!ALL_SIGNALS.includes(k)) continue;
-    if (seen.has(k)) continue;
-    seen.add(k);
-    uniq.push(k);
-  }
-  return uniq.length ? uniq : ["signal2"];
-}
-
 function normalizeDateKey(dateStr) {
   if (!dateStr) return "";
   const s0 = String(dateStr).trim().split("T")[0].split(" ")[0];
@@ -71,8 +51,10 @@ async function loadSignalData() {
 }
 
 function pickAllowedSignals(tier) {
-  if (tier === "basic") return parseBasicAllowedSignalsFromEnv();
-  return ALL_SIGNALS.slice();
+  if (tier === "basic") return [];
+  if (tier === "pro") return ["signal2"];
+  if (tier === "ultra") return ALL_SIGNALS.slice();
+  return [];
 }
 
 function pickAllowedKeys(allowedSignals) {

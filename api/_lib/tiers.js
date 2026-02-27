@@ -3,7 +3,7 @@ const { getMongoDb } = require("./mongo");
 const MEMBERS_COLLECTION = process.env.MONGODB_MEMBERS_COLLECTION || "members";
 
 function isValidTier(t) {
-  return t === "pro" || t === "basic";
+  return t === "basic" || t === "pro" || t === "ultra";
 }
 
 async function getTier(discord_user_id) {
@@ -17,6 +17,12 @@ async function getTier(discord_user_id) {
   }
 
   // 2) Env allowlist (fallback)
+  const ultraIds = (process.env.ULTRA_DISCORD_IDS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (ultraIds.includes(String(discord_user_id))) return "ultra";
+
   const proIds = (process.env.PRO_DISCORD_IDS || "")
     .split(",")
     .map((s) => s.trim())
@@ -28,7 +34,7 @@ async function getTier(discord_user_id) {
 
 async function setTier(discord_user_id, tier) {
   if (!isValidTier(tier)) {
-    throw new Error("tier 必须是 basic 或 pro");
+    throw new Error("tier 必须是 basic / pro / ultra");
   }
 
   const id = String(discord_user_id);
