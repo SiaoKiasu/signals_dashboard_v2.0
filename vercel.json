@@ -1,12 +1,7 @@
 {
   "rewrites": [
+    { "source": "/v1.0/signal_data.json", "destination": "/api/notfound" },
     { "source": "/", "destination": "/v1.0/index.html" }
-  ],
-  "routes": [
-    {
-      "src": "^/v1\\.0/signal_data\\.json$",
-      "status": 404
-    }
   ]
 }
 
