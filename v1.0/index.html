@@ -586,6 +586,8 @@
             '2025-11-17',
             '2025-03-06',
         ]);
+        let authSnapshot = null;
+        let authRemainTimer = null;
 
         function normalizeDateKey(dateStr) {
             if (!dateStr) return '';
@@ -1072,10 +1074,44 @@
         async function renderAuth() {
             const el = document.getElementById('auth-box');
             if (!el) return;
+            if (authRemainTimer) {
+                clearInterval(authRemainTimer);
+                authRemainTimer = null;
+            }
+            function formatRemain(expiresAt) {
+                const ts = Date.parse(String(expiresAt || ''));
+                if (!Number.isFinite(ts)) return '未开通';
+                const diff = ts - Date.now();
+                if (diff <= 0) return '已到期';
+                const totalMin = Math.floor(diff / 60000);
+                const days = Math.floor(totalMin / (24 * 60));
+                const hours = Math.floor((totalMin % (24 * 60)) / 60);
+                const mins = totalMin % 60;
+                return `${days}天 ${hours}小时 ${mins}分钟`;
+            }
+            function renderAuthedBox() {
+                if (!authSnapshot || !authSnapshot.authenticated) return;
+                const tier = String(authSnapshot.tier || 'basic').toUpperCase();
+                const expiresAt = authSnapshot.membership && authSnapshot.membership.expires_at
+                    ? authSnapshot.membership.expires_at
+                    : null;
+                const remain = formatRemain(expiresAt);
+                el.innerHTML = `
+                    <div style="color:#d1d4dc; font-size:12px;">${authSnapshot.discord_user_id}</div>
+                    <div style="color:#9fb3ff; font-size:12px;">等级: ${tier}</div>
+                    <div style="color:#f8cb46; font-size:12px;">剩余: ${remain}</div>
+                    <button id="logout-btn" style="background:transparent; border:1px solid #2a2e39; color:#d1d4dc; padding:6px 10px; border-radius:10px; cursor:pointer;">Logout</button>
+                `;
+                document.getElementById('logout-btn').onclick = async () => {
+                    await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+                    location.reload();
+                };
+            }
             try {
                 const r = await fetch('/api/me', { credentials: 'include' });
                 const j = await r.json();
                 if (!j.authenticated) {
+                    authSnapshot = null;
                     el.innerHTML = `<a href="/api/auth/discord" style="text-decoration:none;">
                         <button style="background:rgba(41,98,255,0.18); border:1px solid rgba(41,98,255,0.5); color:#cfe0ff; padding:6px 12px; border-radius:10px; font-weight:700; cursor:pointer;">
                             Login with Discord
@@ -1083,17 +1119,11 @@
                     </a>`;
                     return;
                 }
-                el.innerHTML = `
-                    <div style="color:#d1d4dc; font-size:12px;">${j.discord_user_id}</div>
-                    <div style="color:#787b86; font-size:12px;">${j.tier}</div>
-                    <button id="logout-btn" style="background:transparent; border:1px solid #2a2e39; color:#d1d4dc; padding:6px 10px; border-radius:10px; cursor:pointer;">Logout</button>
-                `;
-                document.getElementById('logout-btn').onclick = async () => {
-                    await fetch('/api/logout', { method: 'POST', credentials: 'include' });
-                    location.reload();
-                };
+                authSnapshot = j;
+                renderAuthedBox();
+                authRemainTimer = setInterval(renderAuthedBox, 60 * 1000);
             } catch (e) {
-
+                authSnapshot = null;
                 el.innerHTML = '';
             }
         }
