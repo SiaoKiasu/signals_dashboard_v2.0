@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S&L Bro. Quant Analytics</title>
+    <!-- 引入 ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            /* 画布背景调浅一点，让卡片更突出 */
+            --bg-color: #121826;
+            --panel-bg: #151924;
+            --portal-card-bg: #070a10; /* 比 body 更深一点的卡片底色 */
+            --portal-card-border: #1f2431;
+            --text-main: #d1d4dc;
+            --text-muted: #787b86;
+            --accent-blue: #2962ff;
+            --accent-hover: #1e53e5;
+            --signal-red: #f23645;
+            --signal-yellow: #f8cb46;
+            --grid-line: #2a2e39;
+        }
+        
+        body {
+            margin: 0;
+            padding: 24px;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Trebuchet MS", Roboto, Ubuntu, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--grid-line);
+        }
+
+        /* -----------------------------
+           Portal layout (2 rows)
+        ----------------------------- */
+        .portal {
+            display: grid;
+            grid-template-rows: auto auto;
+            gap: 16px;
+        }
+
+        .portal-card {
+            background: var(--portal-card-bg);
+            border: 1px solid var(--portal-card-border);
+            border-radius: 12px;
+            box-shadow: 0 14px 34px rgba(0,0,0,0.42);
+            overflow: hidden;
+        }
+
+        .portal-card-inner {
+            padding: 16px;
+        }
+
+        .portal-card-title {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .portal-card-title .t1 {
+            color: #fff;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+        .portal-card-title .t2 {
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        /* Top cards grid */
+        .snapshot-grid {
+            display: grid;
+            /* 整体别太“宽”，左侧资产卡区与右侧指标区更均衡 */
+            grid-template-columns: 1fr 2fr; /* 左 1/3（资产卡）｜右 2/3（Key Metrics） */
+            gap: 14px;
+            align-items: stretch;
+        }
+        @media (max-width: 980px) {
+            .snapshot-grid { grid-template-columns: 1fr; }
+        }
+
+        .asset-stack {
+            display: grid;
+            /* 三张资产卡更窄一些 */
+            grid-template-columns: repeat(3, minmax(140px, 1fr));
+            gap: 12px;
+        }
+        @media (max-width: 860px) {
+            .asset-stack { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+        }
+        @media (max-width: 620px) {
+            .asset-stack { grid-template-columns: 1fr; }
+        }
+
+        .mcard {
+            position: relative;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.06);
+            overflow: hidden;
+            padding: 12px 12px 10px 12px;
+            min-height: 138px; /* 竖长但更紧凑 */
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
+        }
+
+        /* subtle tile pattern (类似你图里的纹理感) */
+        .mcard::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px);
+            background-size: 22px 22px;
+            opacity: 0.16;
+            pointer-events: none;
+        }
+
+        .mcard::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(1200px 260px at 20% 0%, rgba(255,255,255,0.14), transparent 60%);
+            opacity: 0.55;
+            pointer-events: none;
+        }
+
+        .mcard-head {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .mcard-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.14);
+            border: 1px solid rgba(255,255,255,0.18);
+            color: #fff;
+            font-weight: 800;
+            letter-spacing: 0.2px;
+        }
+        .mcard-name {
+            position: relative;
+            color: rgba(255,255,255,0.92);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            user-select: none;
+        }
+        .mcard-body {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .mcard-price {
+            color: #fff;
+            font-size: 19px;
+            font-weight: 800;
+            letter-spacing: 0.2px;
+        }
+        .mcard-sub {
+            color: rgba(255,255,255,0.78);
+            font-size: 12px;
+        }
+        .mcard-sub .muted {
+            color: rgba(255,255,255,0.68);
+        }
+
+        /* Card themes */
+        /* BTC：橙色系（更符合资产认知） */
+        .theme-btc { background: linear-gradient(135deg, rgba(255, 149, 0, 0.95), rgba(255, 94, 0, 0.78)); }
+        .theme-eth { background: linear-gradient(135deg, rgba(140, 85, 255, 0.95), rgba(110, 74, 255, 0.78)); }
+        .theme-usd { background: linear-gradient(135deg, rgba(255, 166, 0, 0.95), rgba(255, 132, 0, 0.78)); }
+        .theme-mkt { background: linear-gradient(135deg, rgba(255, 72, 133, 0.92), rgba(255, 48, 92, 0.72)); }
+        /* USDC：蓝色系（贴近品牌色） */
+        .theme-usdc { background: linear-gradient(135deg, rgba(39, 117, 202, 0.95), rgba(28, 78, 216, 0.78)); }
+
+        /* Metrics panel (right side) */
+        .metrics-panel {
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.06);
+            background: rgba(21, 25, 36, 0.55);
+            padding: 14px;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .metrics-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .metrics-head .mh1 {
+            color: #fff;
+            font-weight: 700;
+            font-size: 12px;
+            letter-spacing: 0.3px;
+        }
+        .metrics-head .mh2 {
+            color: var(--text-muted);
+            font-size: 11px;
+        }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+        @media (max-width: 520px) {
+            .metrics-grid { grid-template-columns: 1fr; }
+        }
+        .metric {
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.06);
+            background: rgba(7, 10, 16, 0.35);
+            padding: 10px 10px 9px 10px;
+        }
+        .metric .k {
+            color: rgba(255,255,255,0.72);
+            font-size: 11px;
+            margin-bottom: 6px;
+            letter-spacing: 0.2px;
+        }
+        .metric .v {
+            color: #fff;
+            font-size: 16px;
+            font-weight: 800;
+            letter-spacing: 0.2px;
+        }
+        .metric .s {
+            color: rgba(255,255,255,0.68);
+            font-size: 11px;
+            margin-top: 4px;
+        }
+
+        h2 { 
+            margin: 0; 
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: #fff;
+            white-space: nowrap;          /* 标题不要换行 */
+            overflow: hidden;             /* 视口过窄时不撑爆布局 */
+            text-overflow: ellipsis;
+        }
+
+        .header-sub {
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-left: 12px;
+            font-weight: 400;
+            white-space: nowrap;          /* “Algorithm Signals” 不要拆行 */
+        }
+
+        /* -----------------------------
+           Signals card (tabs + buttons + chart)
+        ----------------------------- */
+        .signals-topbar {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .category-tabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .category-tabs button {
+            background-color: transparent;
+            color: var(--text-main);
+            border: 1px solid var(--grid-line);
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: all 0.18s ease;
+        }
+        .category-tabs button:hover {
+            border-color: var(--text-muted);
+            color: #fff;
+        }
+        .category-tabs button.active {
+            background-color: rgba(41, 98, 255, 0.15);
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        .signal-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .signal-buttons button {
+            background-color: transparent;
+            color: var(--text-main);
+            border: 1px solid var(--grid-line);
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.18s ease;
+        }
+        .signal-buttons button:hover {
+            border-color: var(--text-muted);
+            color: #fff;
+        }
+        .signal-buttons button.active {
+            background-color: rgba(41, 98, 255, 0.15);
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        .signal-group {
+            background-color: rgba(21, 25, 36, 0.55);
+            border: 1px solid var(--grid-line);
+            border-radius: 10px;
+            padding: 10px 10px 8px 10px;
+            min-width: 220px;
+            box-sizing: border-box;
+        }
+
+        .signal-group-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .signal-group-title {
+            font-size: 12px;
+            color: #fff;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            user-select: none;
+            cursor: help; /* 提示可悬停看说明 */
+        }
+
+        .signal-group-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            user-select: none;
+        }
+
+        .signal-group-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .signal-group-buttons button {
+            background-color: transparent;
+            color: var(--text-main);
+            border: 1px solid var(--grid-line);
+            padding: 6px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .signal-group-buttons button:hover {
+            border-color: var(--text-muted);
+            color: #fff;
+        }
+
+        .signal-group-buttons button.active {
+            background-color: rgba(41, 98, 255, 0.15);
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        /* 分类说明浮层 */
+        .category-tooltip {
+            position: fixed;
+            z-index: 9999;
+            max-width: 420px;
+            background: rgba(21, 25, 36, 0.96);
+            border: 1px solid var(--grid-line);
+            box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+            border-radius: 10px;
+            padding: 10px 12px;
+            color: var(--text-main);
+            font-size: 12px;
+            line-height: 1.55;
+            pointer-events: none;
+            display: none;
+        }
+        .category-tooltip .t-title {
+            color: #fff;
+            font-weight: 700;
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+        .category-tooltip .t-desc {
+            color: var(--text-main);
+        }
+
+        /* Chart 在 portal 卡片内展示：容器透明，把背景交给 portal-card */
+        #chart-container {
+            width: 100%;
+            height: 72vh;
+            background-color: transparent;
+            border-radius: 10px;
+            padding: 0;
+            box-sizing: border-box;
+            box-shadow: none;
+            border: none;
+        }
+
+        /* 覆盖 ECharts 默认 tooltip 样式以匹配深色主题 */
+        .custom-tooltip {
+            background: rgba(21, 25, 36, 0.95) !important;
+            border: 1px solid var(--grid-line) !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important;
+            border-radius: 6px !important;
+            padding: 12px 16px !important;
+            color: var(--text-main) !important;
+            backdrop-filter: blur(4px);
+        }
+        .tooltip-header {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            border-bottom: 1px solid var(--grid-line);
+            padding-bottom: 6px;
+        }
+        .tooltip-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 6px 0;
+            font-size: 13px;
+            gap: 24px;
+        }
+        .tooltip-label { color: var(--text-muted); }
+        .tooltip-value { font-family: monospace; font-weight: 600; font-size: 14px; color: #fff; }
+        .tooltip-signal { color: var(--signal-red); font-weight: bold; }
+        .tooltip-prob { color: var(--signal-yellow); font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div>
+            <h2>S&L Bro. Portal<span class="header-sub">Algorithm Signals</span></h2>
+        </div>
+        <div id="auth-box" style="margin-left:auto; display:flex; gap:10px; align-items:center;"></div>
+    </div>
+
+    <div class="portal">
+        <!-- 第一行：更深底色卡片背景 + 币价/Dominance 卡片（手动配置数据） -->
+        <div class="portal-card">
+            <div class="portal-card-inner">
+                <div class="portal-card-title">
+                    <div class="t1">Market Snapshot</div>
+                    <div class="t2">Prices & Dominance</div>
+                </div>
+                <div class="snapshot-grid">
+                    <div class="asset-stack" id="market-cards"></div>
+                    <div class="metrics-panel">
+                        <div class="metrics-head">
+                            <div class="mh1">Key Metrics</div>
+                            <div class="mh2">Manual inputs</div>
+                        </div>
+                        <div class="metrics-grid" id="market-metrics"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第二行：Signals 卡片：上方类别选择 + 信号选择；下方原历史信号图表（图表逻辑不变） -->
+        <div class="portal-card">
+            <div class="portal-card-inner">
+                <div class="signals-topbar">
+                    <div class="portal-card-title" style="margin-bottom:0;">
+                        <div class="t1">Signals</div>
+                        <div class="t2">Select category & signal</div>
+                    </div>
+                    <div class="category-tabs" id="category-tabs"></div>
+                    <div class="signal-buttons" id="signal-buttons"></div>
+                </div>
+                <div id="chart-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="category-tooltip" class="category-tooltip"></div>
+
+    <script>
+        // 配置要展示的信号（按你给的顺序）
+        const AVAILABLE_SIGNALS = ['signal2', 'signal7', 'signal9', 'signal18'];
+
+        // 分类方案（示例文案：你后续自己补充/改写即可）
+        const SIGNAL_CATEGORIES = {
+            crash_down: {
+                title: '大跌信号',
+                desc: '触发后至少伴随 5% 以上的跌幅，可直接做空。'
+            },
+            surge_up: {
+                title: '大涨信号',
+                desc: '触发后伴随 10% 以上涨幅，通常需要连续触发 20+ 天/不再触发后做多。'
+            },
+            cyclical_short: {
+                title: '周期性空头',
+                desc: '触发后通常先跌 3%-5% 再涨 10% 以上，可以先做空再做多。'
+            }
+        };
+
+        // 信号配置：显示名 + 分类 + 特性开关
+        // 规则：1/2/5 都算“触发”；只有 signal2 会出现 3=高概率预警
+        const SIGNAL_CONFIG = {
+            signal2:  { name: 'CrashRF_DOWN',   category: 'crash_down',     hasHighProb: true  },
+            signal7:  { name: 'SurgeGB_UP',     category: 'surge_up',       hasHighProb: false },
+            signal9:  { name: 'CyclicalLG_D2U', category: 'cyclical_short', hasHighProb: false },
+            signal18: { name: 'CrashMLP_DOWN',  category: 'crash_down',     hasHighProb: false },
+        };
+
+        // 数据预处理：指定日期的 signal2 强制视为“触发(5)”而不是“高概率(3)”
+        // 支持输入格式如 2026/2/18、2026-02-18、以及带时间的字符串
+        const FORCE_SIGNAL2_TO_TRIGGER_DATES = new Set([
+            '2026-02-18',
+            '2025-11-17',
+            '2025-03-06',
+        ]);
+
+        function normalizeDateKey(dateStr) {
+            if (!dateStr) return '';
+            // 取日期部分（防止 'YYYY-MM-DDTHH:mm:ss'）
+            const s0 = String(dateStr).trim().split('T')[0].split(' ')[0];
+            const s = s0.replaceAll('/', '-');
+            const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+            if (!m) return s;
+            const yyyy = m[1];
+            const mm = m[2].padStart(2, '0');
+            const dd = m[3].padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
+        let currentSignal = AVAILABLE_SIGNALS[0];
+        let rawData = [];
+        // 用于快速通过日期查找数据的 Map，方便 Tooltip 渲染
+        let dataMap = new Map();
+        
+        // 初始化 ECharts (不使用内置 dark，完全自定义颜色)
+        const chart = echarts.init(document.getElementById('chart-container'));
+
+        // -----------------------------
+        // Portal: Top cards (manual input at bottom)
+        // -----------------------------
+        function renderMarketSnapshot() {
+            const cardsEl = document.getElementById('market-cards');
+            const metricsEl = document.getElementById('market-metrics');
+            if (!cardsEl || !metricsEl) return;
+
+            const cards = (window.PORTAL_MARKET_CARDS || []);
+            const metrics = (window.PORTAL_MARKET_METRICS || []);
+
+            cardsEl.innerHTML = cards.map(c => {
+                const theme = c.theme || 'theme-btc';
+                const icon = c.icon || (c.symbol || '?').slice(0, 1);
+                const name = c.name || c.symbol || '';
+                const price = c.priceText || '-';
+                const dom = c.dominanceText || '-';
+                const domLabel = c.dominanceLabel || 'Dominance';
+                return `
+                <div class="mcard ${theme}">
+                    <div class="mcard-head">
+                        <div class="mcard-icon">${icon}</div>
+                        <div class="mcard-name">${name}</div>
+                    </div>
+                    <div class="mcard-body">
+                        <div class="mcard-price">${price}</div>
+                        <div class="mcard-sub"><span class="muted">${domLabel}:</span> ${dom}</div>
+                    </div>
+                </div>`;
+            }).join('');
+
+            metricsEl.innerHTML = metrics.map(m => {
+                const k = m.key || '';
+                const v = m.value || '-';
+                const s = m.sub || '';
+                return `
+                <div class="metric">
+                    <div class="k">${k}</div>
+                    <div class="v">${v}</div>
+                    ${s ? `<div class="s">${s}</div>` : ``}
+                </div>`;
+            }).join('');
+        }
+
+        function _tooltipEl() {
+            return document.getElementById('category-tooltip');
+        }
+
+        function showCategoryTooltip(catKey, x, y) {
+            const el = _tooltipEl();
+            const cat = SIGNAL_CATEGORIES[catKey];
+            if (!el || !cat) return;
+
+            el.innerHTML = `<div class="t-title">${cat.title}</div><div class="t-desc">${cat.desc}</div>`;
+            el.style.display = 'block';
+
+            // 简单防溢出：尽量跟随鼠标右下角，超过屏幕就反向
+            const pad = 12;
+            const rect = el.getBoundingClientRect();
+            let left = x + pad;
+            let top = y + pad;
+            if (left + rect.width > window.innerWidth) left = x - rect.width - pad;
+            if (top + rect.height > window.innerHeight) top = y - rect.height - pad;
+            el.style.left = `${Math.max(8, left)}px`;
+            el.style.top = `${Math.max(8, top)}px`;
+        }
+
+        function hideCategoryTooltip() {
+            const el = _tooltipEl();
+            if (!el) return;
+            el.style.display = 'none';
+        }
+
+        const CATEGORY_ORDER = ['crash_down', 'surge_up', 'cyclical_short'];
+        let currentCategory = (SIGNAL_CONFIG[currentSignal] || {}).category || CATEGORY_ORDER[0];
+
+        function renderChart(signalKey) {
+            currentSignal = signalKey;
+            
+            // 更新按钮 UI
+            document.querySelectorAll('#signal-buttons button').forEach(btn => {
+                btn.className = btn.dataset.signal === signalKey ? 'active' : '';
+            });
+
+            const dates = [];
+            const prices = [];
+            const triggerPoints = [];
+            const highProbPoints = [];
+
+            // 你提到想看概率，这里推断 json 里有 proba1 / proba2 等字段与 signal1 / signal2 对应
+            const probaKey = signalKey.replace('signal', 'proba');
+            const hasHighProb = !!((SIGNAL_CONFIG[signalKey] || {}).hasHighProb);
+
+            rawData.forEach(item => {
+                dates.push(item.date);
+                prices.push(item.price);
+                
+                const sigVal = item[signalKey];
+                
+                if (sigVal === 1 || sigVal === 2 || sigVal === 5) {
+                    triggerPoints.push({
+                        coord: [item.date, item.price],
+                        value: sigVal // 内部保留用来判断，但不显示在UI上
+                    });
+                } else if (sigVal === 3 && hasHighProb) {
+                    highProbPoints.push({
+                        coord: [item.date, item.price],
+                        value: sigVal
+                    });
+                }
+            });
+
+            // series：高概率系列仅在 signal2 启用
+            const triggerScatterData = triggerPoints.map(p => p.coord);
+            const highProbScatterData = highProbPoints.map(p => p.coord);
+
+            const series = [
+                // 主价格线
+                {
+                    name: 'Price',
+                    type: 'line',
+                    data: prices,
+                    smooth: false, // 金融图表通常不用平滑曲线，保持真实折线
+                    symbol: 'none',
+                    lineStyle: { color: '#2962ff', width: 1.5 },
+                    areaStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: 'rgba(41, 98, 255, 0.2)' },
+                            { offset: 1, color: 'rgba(41, 98, 255, 0)' }
+                        ])
+                    }
+                },
+                // 触发点（独立 scatter 系列，便于 legend 交互隐藏/显示）
+                {
+                    name: '触发信号',
+                    type: 'scatter',
+                    data: triggerScatterData,
+                    symbol: 'circle',
+                    symbolSize: 10,
+                    z: 10,                 // 触发信号永远压在最上层（重叠优先展示）
+                    itemStyle: {
+                        color: '#f23645',
+                        shadowColor: 'rgba(242, 54, 69, 0.5)',
+                        shadowBlur: 10
+                    },
+                    emphasis: { scale: 1.2 }
+                }
+            ];
+
+            if (hasHighProb) {
+                series.push({
+                    name: '高概率预警',
+                    type: 'scatter',
+                    data: highProbScatterData,
+                    symbol: 'circle',
+                    symbolSize: 7,         // 高概率点更小，避免盖住触发点
+                    z: 6,                  // 层级低于触发点（触发点 z=10）
+                    itemStyle: {
+                        color: '#f8cb46',
+                        opacity: 0.9,
+                        shadowColor: 'rgba(248, 203, 70, 0.5)',
+                        shadowBlur: 10
+                    },
+                    emphasis: { scale: 1.1 }
+                });
+            }
+
+            const option = {
+                backgroundColor: 'transparent',
+                // 自定义美化 Tooltip
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { 
+                        type: 'cross',
+                        lineStyle: { color: '#444', width: 1, type: 'dashed' },
+                        crossStyle: { color: '#444', width: 1, type: 'dashed' }
+                    },
+                    padding: 0,
+                    formatter: function(params) {
+                        // params[0] 是价格曲线的点
+                        const dataIndex = params[0].dataIndex;
+                        const item = rawData[dataIndex];
+                        const dateStr = item.date;
+                        const price = item.price;
+                        const sigVal = item[currentSignal];
+                        const hasHighProb = !!((SIGNAL_CONFIG[currentSignal] || {}).hasHighProb);
+                        const probVal = hasHighProb ? (item[probaKey] || 0) : 0; // 仅 signal2 读取概率
+
+                        let extraHtml = '';
+                        
+                        if (sigVal === 1 || sigVal === 2 || sigVal === 5) {
+                            extraHtml += `<div class="tooltip-row">
+                                <span class="tooltip-label">Status</span>
+                                <span class="tooltip-signal">🟥 触发信号</span>
+                            </div>`;
+                        } else if (sigVal === 3 && hasHighProb) {
+                            // 这里按你要求，只展示概率不重复展示价格，把概率格式化为百分比
+                            const probPercent = (probVal * 100).toFixed(2) + '%';
+                            extraHtml += `<div class="tooltip-row">
+                                <span class="tooltip-label">Status</span>
+                                <span class="tooltip-prob">🟨 高概率预警</span>
+                            </div>
+                            <div class="tooltip-row">
+                                <span class="tooltip-label">Probability</span>
+                                <span class="tooltip-value" style="color: var(--signal-yellow)">${probPercent}</span>
+                            </div>`;
+                        }
+
+                        return `
+                        <div class="custom-tooltip">
+                            <div class="tooltip-header">${dateStr}</div>
+                            <div class="tooltip-row">
+                                <span class="tooltip-label">Price</span>
+                                <span class="tooltip-value">${price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</span>
+                            </div>
+                            ${extraHtml}
+                        </div>`;
+                    }
+                },
+                legend: {
+                    data: hasHighProb ? ['Price', '触发信号', '高概率预警'] : ['Price', '触发信号'],
+                    textStyle: { color: '#787b86', fontSize: 12 },
+                    top: 0,
+                    icon: 'circle',
+                    itemWidth: 8,
+                    itemHeight: 8
+                },
+                grid: {
+                    left: '2%', right: '4%', bottom: '12%', top: '10%', containLabel: true
+                },
+                dataZoom: [
+                    { 
+                        type: 'inside', start: 0, end: 100 
+                    },
+                    { 
+                        type: 'slider', 
+                        start: 0, end: 100,
+                        bottom: '2%',
+                        height: 24,
+                        borderColor: 'transparent',
+                        backgroundColor: '#151924',
+                        fillerColor: 'rgba(41, 98, 255, 0.1)',
+                        dataBackground: {
+                            lineStyle: { color: '#2a2e39', width: 1 },
+                            areaStyle: { color: '#2a2e39', opacity: 0.2 }
+                        },
+                        selectedDataBackground: {
+                            lineStyle: { color: '#2962ff', width: 1 },
+                            areaStyle: { color: '#2962ff', opacity: 0.2 }
+                        },
+                        handleStyle: {
+                            color: '#d1d4dc',
+                            borderColor: '#151924'
+                        },
+                        textStyle: { color: '#787b86' }
+                    }
+                ],
+                xAxis: {
+                    type: 'category',
+                    data: dates,
+                    boundaryGap: false,
+                    axisLine: { show: false },
+                    axisTick: { show: false },
+                    axisLabel: { color: '#787b86', margin: 12 }
+                },
+                yAxis: {
+                    type: 'value',
+                    scale: true,
+                    position: 'right', // 价格轴放到右边，更符合金融图表习惯
+                    splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } },
+                    axisLabel: { 
+                        color: '#787b86',
+                        formatter: (value) => value.toLocaleString() 
+                    }
+                },
+                series: series
+            };
+
+            // 关键：notMerge 防止从上一个 signal 残留 series/legend（会导致高概率点串到其它信号）
+            chart.setOption(option, { notMerge: true, lazyUpdate: false });
+        }
+
+        function renderCategoryTabs() {
+            const el = document.getElementById('category-tabs');
+            if (!el) return;
+            el.innerHTML = '';
+
+            CATEGORY_ORDER.forEach(catKey => {
+                const cat = SIGNAL_CATEGORIES[catKey];
+                if (!cat) return;
+
+                const btn = document.createElement('button');
+                btn.innerText = cat.title;
+                btn.dataset.category = catKey;
+                btn.className = (catKey === currentCategory) ? 'active' : '';
+
+                // hover 展示说明
+                btn.addEventListener('mouseenter', (e) => showCategoryTooltip(catKey, e.clientX, e.clientY));
+                btn.addEventListener('mousemove', (e) => showCategoryTooltip(catKey, e.clientX, e.clientY));
+                btn.addEventListener('mouseleave', hideCategoryTooltip);
+
+                btn.addEventListener('click', () => {
+                    currentCategory = catKey;
+                    renderCategoryTabs();
+                    renderSignalButtons();
+                });
+
+                el.appendChild(btn);
+            });
+        }
+
+        function renderSignalButtons() {
+            const el = document.getElementById('signal-buttons');
+            if (!el) return;
+            el.innerHTML = '';
+
+            const members = AVAILABLE_SIGNALS.filter(sig => (SIGNAL_CONFIG[sig] || {}).category === currentCategory);
+            members.forEach(sig => {
+                const btn = document.createElement('button');
+                btn.innerText = (SIGNAL_CONFIG[sig] && SIGNAL_CONFIG[sig].name) ? SIGNAL_CONFIG[sig].name : sig.toUpperCase();
+                btn.dataset.signal = sig;
+                btn.className = (sig === currentSignal) ? 'active' : '';
+                btn.onclick = () => renderChart(sig);
+                el.appendChild(btn);
+            });
+
+            // 若当前信号不在该分类内，自动切换到该分类第一条
+            if (members.length > 0 && !members.includes(currentSignal)) {
+                renderChart(members[0]);
+            }
+        }
+
+        function initButtons() {
+            // 初始分类跟随默认信号
+            currentCategory = (SIGNAL_CONFIG[currentSignal] || {}).category || CATEGORY_ORDER[0];
+            renderCategoryTabs();
+            renderSignalButtons();
+        }
+
+        async function loadData() {
+            try {
+                // Vercel 部署后：从后端 API 拉数据（带鉴权/按会员裁剪）
+                // 本地静态打开/没有后端时：回退读取同目录 signal_data.json
+                let json = null;
+                try {
+                    const r = await fetch('/api/portal/history', { credentials: 'include' });
+                    if (r.status === 401) {
+                        renderAuth();
+                        throw new Error('UNAUTHORIZED');
+                    }
+                    if (r.ok) {
+                        json = await r.json();
+                    }
+                } catch (e) {
+                    // ignore, try fallback below
+                }
+
+                if (!json) {
+                    const response = await fetch('./signal_data.json');
+                    json = await response.json();
+                }
+
+                const cutoff = new Date('2022-11-11T00:00:00');
+                const list = (json.data.signal_list || []);
+
+                // 1) 先做信号值改写（画图前）
+                list.forEach(item => {
+                    const key = normalizeDateKey(item.date);
+                    if (FORCE_SIGNAL2_TO_TRIGGER_DATES.has(key)) {
+                        item.signal2 = 5;
+                    }
+                });
+
+                // 2) 再过滤日期（只保留 2022-11-11 之后）
+                rawData = list.filter(item => {
+                    const d = new Date(normalizeDateKey(item.date));
+                    return !isNaN(d.getTime()) && d >= cutoff;
+                });
+                
+                // 建立映射方便 tooltip 查询
+                rawData.forEach(item => {
+                    dataMap.set(item.date, item);
+                });
+                
+                initButtons();
+                renderChart(AVAILABLE_SIGNALS[0]);
+
+                // Portal top cards (independent from chart)
+                renderMarketSnapshot();
+
+                // auth ui
+                renderAuth();
+            } catch (err) {
+                console.error("数据加载失败:", err);
+                document.getElementById('chart-container').innerHTML = 
+                    `<div style="color:#f23645; text-align:center; margin-top:20%; font-size:14px;">
+                        Data mapping failed. If deployed on Vercel, ensure you are logged in. If local, ensure signal_data.json exists and you are running a local HTTP server.
+                    </div>`;
+            }
+        }
+
+        async function renderAuth() {
+            const el = document.getElementById('auth-box');
+            if (!el) return;
+            try {
+                const r = await fetch('/api/me', { credentials: 'include' });
+                const j = await r.json();
+                if (!j.authenticated) {
+                    el.innerHTML = `<a href="/api/auth/discord" style="text-decoration:none;">
+                        <button style="background:rgba(41,98,255,0.18); border:1px solid rgba(41,98,255,0.5); color:#cfe0ff; padding:6px 12px; border-radius:10px; font-weight:700; cursor:pointer;">
+                            Login with Discord
+                        </button>
+                    </a>`;
+                    return;
+                }
+                el.innerHTML = `
+                    <div style="color:#d1d4dc; font-size:12px;">${j.discord_user_id}</div>
+                    <div style="color:#787b86; font-size:12px;">${j.tier}</div>
+                    <button id="logout-btn" style="background:transparent; border:1px solid #2a2e39; color:#d1d4dc; padding:6px 10px; border-radius:10px; cursor:pointer;">Logout</button>
+                `;
+                document.getElementById('logout-btn').onclick = async () => {
+                    await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+                    location.reload();
+                };
+            } catch (e) {
+                // no api (local mode)
+                el.innerHTML = '';
+            }
+        }
+
+        window.addEventListener('resize', () => chart.resize());
+        loadData();
+
+        // -----------------------------
+        // Manual input (你后续接数据源时，替换这里即可)
+        // -----------------------------
+        // 你只需要维护 priceText / dominanceText 即可（字符串格式完全由你控制）
+        window.PORTAL_MARKET_CARDS = [
+            { symbol: 'BTC', name: 'Bitcoin', icon: '฿', theme: 'theme-btc', priceText: '$68,192', dominanceLabel: 'Dominance', dominanceText: '58.64%' },
+            // ETH 标志：这里用更常见的 Ξ（你也可以换成 ⟠）
+            { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', theme: 'theme-eth', priceText: '$2,064', dominanceLabel: 'Dominance', dominanceText: '10.16%' },
+            { symbol: 'USDC', name: 'USDC', icon: '$', theme: 'theme-usdc', priceText: '$1.002', dominanceLabel: 'Dominance', dominanceText: '3.32%' },
+        ];
+
+        // 右侧关键指标（你后续接入数据源时，替换 value/sub 即可）
+        window.PORTAL_MARKET_METRICS = [
+            { key: 'Nasdaq', value: '24,855.96', sub: 'Micro E-mini Nasdaq-100 Index Futures'  },
+            { key: 'VIX', value: '20.72', sub: 'CBOE Volatility Index' },
+            { key: 'DXY', value: '104.20', sub: 'US Dollar Index' },
+            { key: 'Funding', value: '0.0015%', sub: 'Binance BTCUSDT Perpetual Funding Rates' },
+            { key: 'OI', value: '99.54B', sub: 'Total Open Interest' },
+            { key: 'Liquidation', value: '601.67M', sub: 'Total Liquidation Value' },
+        ];
+    </script>
+</body>
+</html>
+
+
+
+
+<!-- cd /Users/yanglinzi/code/SiaoMeh/SL_Bro./v1.0 -->
+<!-- python3 -m http.server 8000 -->
