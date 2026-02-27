@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>S&L Bro. Quant Analytics</title>
-    <!-- 引入 ECharts -->
+    
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <style>
         :root {
-            /* 画布背景调浅一点，让卡片更突出 */
+            
             --bg-color: #121826;
             --panel-bg: #151924;
-            --portal-card-bg: #070a10; /* 比 body 更深一点的卡片底色 */
+            --portal-card-bg: #070a10; 
             --portal-card-border: #1f2431;
             --text-main: #d1d4dc;
             --text-muted: #787b86;
@@ -40,9 +40,7 @@
             border-bottom: 1px solid var(--grid-line);
         }
 
-        /* -----------------------------
-           Portal layout (2 rows)
-        ----------------------------- */
+        
         .portal {
             display: grid;
             grid-template-rows: auto auto;
@@ -79,11 +77,11 @@
             font-size: 12px;
         }
 
-        /* Top cards grid */
+        
         .snapshot-grid {
             display: grid;
-            /* 整体别太“宽”，左侧资产卡区与右侧指标区更均衡 */
-            grid-template-columns: 1fr 2fr; /* 左 1/3（资产卡）｜右 2/3（Key Metrics） */
+            
+            grid-template-columns: 1fr 2fr; 
             gap: 14px;
             align-items: stretch;
         }
@@ -93,7 +91,7 @@
 
         .asset-stack {
             display: grid;
-            /* 三张资产卡更窄一些 */
+            
             grid-template-columns: repeat(3, minmax(140px, 1fr));
             gap: 12px;
         }
@@ -110,11 +108,11 @@
             border: 1px solid rgba(255,255,255,0.06);
             overflow: hidden;
             padding: 12px 12px 10px 12px;
-            min-height: 138px; /* 竖长但更紧凑 */
+            min-height: 138px; 
             box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
         }
 
-        /* subtle tile pattern (类似你图里的纹理感) */
+        
         .mcard::before {
             content: "";
             position: absolute;
@@ -185,16 +183,16 @@
             color: rgba(255,255,255,0.68);
         }
 
-        /* Card themes */
-        /* BTC：橙色系（更符合资产认知） */
+        
+        
         .theme-btc { background: linear-gradient(135deg, rgba(255, 149, 0, 0.95), rgba(255, 94, 0, 0.78)); }
         .theme-eth { background: linear-gradient(135deg, rgba(140, 85, 255, 0.95), rgba(110, 74, 255, 0.78)); }
         .theme-usd { background: linear-gradient(135deg, rgba(255, 166, 0, 0.95), rgba(255, 132, 0, 0.78)); }
         .theme-mkt { background: linear-gradient(135deg, rgba(255, 72, 133, 0.92), rgba(255, 48, 92, 0.72)); }
-        /* USDC：蓝色系（贴近品牌色） */
+        
         .theme-usdc { background: linear-gradient(135deg, rgba(39, 117, 202, 0.95), rgba(28, 78, 216, 0.78)); }
 
-        /* Metrics panel (right side) */
+        
         .metrics-panel {
             border-radius: 14px;
             border: 1px solid rgba(255,255,255,0.06);
@@ -259,8 +257,8 @@
             font-weight: 600;
             letter-spacing: 0.5px;
             color: #fff;
-            white-space: nowrap;          /* 标题不要换行 */
-            overflow: hidden;             /* 视口过窄时不撑爆布局 */
+            white-space: nowrap;          
+            overflow: hidden;             
             text-overflow: ellipsis;
         }
 
@@ -269,12 +267,10 @@
             font-size: 13px;
             margin-left: 12px;
             font-weight: 400;
-            white-space: nowrap;          /* “Algorithm Signals” 不要拆行 */
+            white-space: nowrap;          
         }
 
-        /* -----------------------------
-           Signals card (tabs + buttons + chart)
-        ----------------------------- */
+        
         .signals-topbar {
             display: flex;
             flex-direction: column;
@@ -381,7 +377,7 @@
             font-weight: 600;
             letter-spacing: 0.3px;
             user-select: none;
-            cursor: help; /* 提示可悬停看说明 */
+            cursor: help; 
         }
 
         .signal-group-sub {
@@ -419,7 +415,7 @@
             color: var(--accent-blue);
         }
 
-        /* 分类说明浮层 */
+        
         .category-tooltip {
             position: fixed;
             z-index: 9999;
@@ -445,7 +441,7 @@
             color: var(--text-main);
         }
 
-        /* Chart 在 portal 卡片内展示：容器透明，把背景交给 portal-card */
+        
         #chart-container {
             width: 100%;
             height: 72vh;
@@ -472,7 +468,7 @@
             line-height: 1.6;
         }
 
-        /* 覆盖 ECharts 默认 tooltip 样式以匹配深色主题 */
+        
         .custom-tooltip {
             background: rgba(21, 25, 36, 0.95) !important;
             border: 1px solid var(--grid-line) !important;
@@ -513,7 +509,7 @@
     </div>
 
     <div class="portal">
-        <!-- 第一行：更深底色卡片背景 + 币价/Dominance 卡片（手动配置数据） -->
+        
         <div class="portal-card">
             <div class="portal-card-inner">
                 <div class="portal-card-title">
@@ -525,7 +521,7 @@
                     <div class="metrics-panel">
                         <div class="metrics-head">
                             <div class="mh1">Key Metrics</div>
-                            <div class="mh2">Manual inputs</div>
+                            <div class="mh2">Live Data</div>
                         </div>
                         <div class="metrics-grid" id="market-metrics"></div>
                     </div>
@@ -533,7 +529,7 @@
             </div>
         </div>
 
-        <!-- 第二行：Signals 卡片：上方类别选择 + 信号选择；下方原历史信号图表（图表逻辑不变） -->
+        
         <div class="portal-card">
             <div class="portal-card-inner">
                 <div class="signals-topbar">
@@ -552,11 +548,10 @@
     <div id="category-tooltip" class="category-tooltip"></div>
 
     <script>
-        // 全量信号顺序（最终展示会按会员权限过滤）
+
         const ALL_SIGNALS = ['signal2', 'signal7', 'signal9', 'signal18'];
         let availableSignals = ALL_SIGNALS.slice();
 
-        // 分类方案（示例文案：你后续自己补充/改写即可）
         const SIGNAL_CATEGORIES = {
             crash_down: {
                 title: '大跌信号',
@@ -572,8 +567,6 @@
             }
         };
 
-        // 信号配置：显示名 + 分类 + 特性开关
-        // 规则：1/2/5 都算“触发”；只有 signal2 会出现 3=高概率预警
         const SIGNAL_CONFIG = {
             signal2:  { name: 'CrashRF_DOWN',   category: 'crash_down',     hasHighProb: true  },
             signal7:  { name: 'SurgeGB_UP',     category: 'surge_up',       hasHighProb: false },
@@ -588,8 +581,6 @@
             signal18: 'ultra',
         };
 
-        // 数据预处理：指定日期的 signal2 强制视为“触发(5)”而不是“高概率(3)”
-        // 支持输入格式如 2026/2/18、2026-02-18、以及带时间的字符串
         const FORCE_SIGNAL2_TO_TRIGGER_DATES = new Set([
             '2026-02-18',
             '2025-11-17',
@@ -598,7 +589,7 @@
 
         function normalizeDateKey(dateStr) {
             if (!dateStr) return '';
-            // 取日期部分（防止 'YYYY-MM-DDTHH:mm:ss'）
+
             const s0 = String(dateStr).trim().split('T')[0].split(' ')[0];
             const s = s0.replaceAll('/', '-');
             const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
@@ -612,15 +603,12 @@
         let currentSignal = ALL_SIGNALS[0];
         let currentTier = 'basic';
         let rawData = [];
-        // 用于快速通过日期查找数据的 Map，方便 Tooltip 渲染
+
         let dataMap = new Map();
         
-        // 初始化 ECharts (不使用内置 dark，完全自定义颜色)
+
         const chart = echarts.init(document.getElementById('chart-container'));
 
-        // -----------------------------
-        // Portal: Top cards (manual input at bottom)
-        // -----------------------------
         function renderMarketSnapshot() {
             const cardsEl = document.getElementById('market-cards');
             const metricsEl = document.getElementById('market-metrics');
@@ -674,7 +662,6 @@
             el.innerHTML = `<div class="t-title">${cat.title}</div><div class="t-desc">${cat.desc}</div>`;
             el.style.display = 'block';
 
-            // 简单防溢出：尽量跟随鼠标右下角，超过屏幕就反向
             const pad = 12;
             const rect = el.getBoundingClientRect();
             let left = x + pad;
@@ -713,7 +700,7 @@
                 container.appendChild(mask);
             }
             const tierLabel = String(requiredTier || 'ultra').toUpperCase();
-            mask.innerHTML = `该信号仅对 <b>${tierLabel}</b> 会员开放<br/>请升级会员后查看详情`;
+            mask.innerHTML = `该信号仅对 <b>${tierLabel}</b> 会员开放，请升级会员后查看详情。`;
         }
 
         function hideChartLockMask() {
@@ -724,7 +711,7 @@
         function renderChart(signalKey) {
             currentSignal = signalKey;
             
-            // 更新按钮 UI
+
             document.querySelectorAll('#signal-buttons button').forEach(btn => {
                 const isLocked = btn.dataset.locked === '1';
                 btn.className = '';
@@ -745,7 +732,6 @@
             const triggerPoints = [];
             const highProbPoints = [];
 
-            // 你提到想看概率，这里推断 json 里有 proba1 / proba2 等字段与 signal1 / signal2 对应
             const probaKey = signalKey.replace('signal', 'proba');
             const hasHighProb = !!((SIGNAL_CONFIG[signalKey] || {}).hasHighProb);
 
@@ -758,7 +744,7 @@
                 if (sigVal === 1 || sigVal === 2 || sigVal === 5) {
                     triggerPoints.push({
                         coord: [item.date, item.price],
-                        value: sigVal // 内部保留用来判断，但不显示在UI上
+                        value: sigVal
                     });
                 } else if (sigVal === 3 && hasHighProb) {
                     highProbPoints.push({
@@ -768,17 +754,16 @@
                 }
             });
 
-            // series：高概率系列仅在 signal2 启用
             const triggerScatterData = triggerPoints.map(p => p.coord);
             const highProbScatterData = highProbPoints.map(p => p.coord);
 
             const series = [
-                // 主价格线
+
                 {
                     name: 'Price',
                     type: 'line',
                     data: prices,
-                    smooth: false, // 金融图表通常不用平滑曲线，保持真实折线
+                    smooth: false,
                     symbol: 'none',
                     lineStyle: { color: '#2962ff', width: 1.5 },
                     areaStyle: {
@@ -788,14 +773,14 @@
                         ])
                     }
                 },
-                // 触发点（独立 scatter 系列，便于 legend 交互隐藏/显示）
+
                 {
                     name: '触发信号',
                     type: 'scatter',
                     data: triggerScatterData,
                     symbol: 'circle',
                     symbolSize: 10,
-                    z: 10,                 // 触发信号永远压在最上层（重叠优先展示）
+                    z: 10,
                     itemStyle: {
                         color: '#f23645',
                         shadowColor: 'rgba(242, 54, 69, 0.5)',
@@ -811,8 +796,8 @@
                     type: 'scatter',
                     data: highProbScatterData,
                     symbol: 'circle',
-                    symbolSize: 7,         // 高概率点更小，避免盖住触发点
-                    z: 6,                  // 层级低于触发点（触发点 z=10）
+                    symbolSize: 7,
+                    z: 6,
                     itemStyle: {
                         color: '#f8cb46',
                         opacity: 0.9,
@@ -825,7 +810,7 @@
 
             const option = {
                 backgroundColor: 'transparent',
-                // 自定义美化 Tooltip
+
                 tooltip: {
                     trigger: 'axis',
                     axisPointer: { 
@@ -835,14 +820,14 @@
                     },
                     padding: 0,
                     formatter: function(params) {
-                        // params[0] 是价格曲线的点
+
                         const dataIndex = params[0].dataIndex;
                         const item = rawData[dataIndex];
                         const dateStr = item.date;
                         const price = item.price;
                         const sigVal = item[currentSignal];
                         const hasHighProb = !!((SIGNAL_CONFIG[currentSignal] || {}).hasHighProb);
-                        const probVal = hasHighProb ? (item[probaKey] || 0) : 0; // 仅 signal2 读取概率
+                        const probVal = hasHighProb ? (item[probaKey] || 0) : 0;
 
                         let extraHtml = '';
                         
@@ -852,7 +837,7 @@
                                 <span class="tooltip-signal">🟥 触发信号</span>
                             </div>`;
                         } else if (sigVal === 3 && hasHighProb) {
-                            // 这里按你要求，只展示概率不重复展示价格，把概率格式化为百分比
+
                             const probPercent = (probVal * 100).toFixed(2) + '%';
                             extraHtml += `<div class="tooltip-row">
                                 <span class="tooltip-label">Status</span>
@@ -924,7 +909,7 @@
                 yAxis: {
                     type: 'value',
                     scale: true,
-                    position: 'right', // 价格轴放到右边，更符合金融图表习惯
+                    position: 'right',
                     splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } },
                     axisLabel: { 
                         color: '#787b86',
@@ -934,7 +919,6 @@
                 series: series
             };
 
-            // 关键：notMerge 防止从上一个 signal 残留 series/legend（会导致高概率点串到其它信号）
             chart.setOption(option, { notMerge: true, lazyUpdate: false });
         }
 
@@ -952,7 +936,6 @@
                 btn.dataset.category = catKey;
                 btn.className = (catKey === currentCategory) ? 'active' : '';
 
-                // hover 展示说明
                 btn.addEventListener('mouseenter', (e) => showCategoryTooltip(catKey, e.clientX, e.clientY));
                 btn.addEventListener('mousemove', (e) => showCategoryTooltip(catKey, e.clientX, e.clientY));
                 btn.addEventListener('mouseleave', hideCategoryTooltip);
@@ -994,14 +977,13 @@
                 el.appendChild(btn);
             });
 
-            // 若当前信号不在该分类内，自动切换到该分类第一条
             if (members.length > 0 && !members.includes(currentSignal)) {
                 renderChart(members[0]);
             }
         }
 
         function initButtons() {
-            // 初始分类跟随默认信号
+
             const firstEnabled = availableSignals[0] || ALL_SIGNALS[0];
             if (!ALL_SIGNALS.includes(currentSignal)) {
                 currentSignal = firstEnabled;
@@ -1012,11 +994,10 @@
         }
 
         async function loadData() {
-            // 无论历史数据是否可用，都先渲染登录区，避免按钮被错误隐藏
+
             renderAuth();
             try {
-                // Vercel 部署后：从后端 API 拉数据（带鉴权/按会员裁剪）
-                // 本地静态打开/没有后端时：回退读取同目录 signal_data.json
+
                 let json = null;
                 let apiErr = null;
                 try {
@@ -1036,7 +1017,7 @@
                 }
 
                 if (!json) {
-                    // 仅本地开发模式回退到静态文件；线上环境强制走后端鉴权数据
+
                     const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
                     if (isLocal) {
                         const response = await fetch('./signal_data.json');
@@ -1055,7 +1036,6 @@
                 }
                 currentTier = json.tier || 'basic';
 
-                // 1) 先做信号值改写（画图前）
                 list.forEach(item => {
                     const key = normalizeDateKey(item.date);
                     if (FORCE_SIGNAL2_TO_TRIGGER_DATES.has(key)) {
@@ -1063,13 +1043,12 @@
                     }
                 });
 
-                // 2) 再过滤日期（只保留 2022-11-11 之后）
                 rawData = list.filter(item => {
                     const d = new Date(normalizeDateKey(item.date));
                     return !isNaN(d.getTime()) && d >= cutoff;
                 });
                 
-                // 建立映射方便 tooltip 查询
+
                 rawData.forEach(item => {
                     dataMap.set(item.date, item);
                 });
@@ -1077,10 +1056,8 @@
                 initButtons();
                 renderChart(availableSignals[0] || ALL_SIGNALS[0]);
 
-                // Portal top cards (independent from chart)
                 renderMarketSnapshot();
 
-                // auth ui
                 renderAuth();
             } catch (err) {
                 console.error("数据加载失败:", err);
@@ -1116,7 +1093,7 @@
                     location.reload();
                 };
             } catch (e) {
-                // no api (local mode)
+
                 el.innerHTML = '';
             }
         }
@@ -1124,18 +1101,13 @@
         window.addEventListener('resize', () => chart.resize());
         loadData();
 
-        // -----------------------------
-        // Manual input (你后续接数据源时，替换这里即可)
-        // -----------------------------
-        // 你只需要维护 priceText / dominanceText 即可（字符串格式完全由你控制）
         window.PORTAL_MARKET_CARDS = [
             { symbol: 'BTC', name: 'Bitcoin', icon: '฿', theme: 'theme-btc', priceText: '$68,192', dominanceLabel: 'Dominance', dominanceText: '58.64%' },
-            // ETH 标志：这里用更常见的 Ξ（你也可以换成 ⟠）
+
             { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', theme: 'theme-eth', priceText: '$2,064', dominanceLabel: 'Dominance', dominanceText: '10.16%' },
             { symbol: 'USDC', name: 'USDC', icon: '$', theme: 'theme-usdc', priceText: '$1.002', dominanceLabel: 'Dominance', dominanceText: '3.32%' },
         ];
 
-        // 右侧关键指标（你后续接入数据源时，替换 value/sub 即可）
         window.PORTAL_MARKET_METRICS = [
             { key: 'Nasdaq', value: '24,855.96', sub: 'Micro E-mini Nasdaq-100 Index Futures'  },
             { key: 'VIX', value: '20.72', sub: 'CBOE Volatility Index' },
@@ -1148,8 +1120,3 @@
 </body>
 </html>
 
-
-
-
-<!-- cd /Users/yanglinzi/code/SiaoMeh/SL_Bro./v1.0 -->
-<!-- python3 -m http.server 8000 -->
