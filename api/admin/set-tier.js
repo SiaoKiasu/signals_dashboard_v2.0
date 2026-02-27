@@ -1,4 +1,4 @@
-const { setTier } = require("../_lib/tiers");
+const { setTier, applyMembershipChange } = require("../_lib/tiers");
 
 module.exports = async (req, res) => {
   const adminSecret = process.env.ADMIN_SECRET;
@@ -39,6 +39,10 @@ module.exports = async (req, res) => {
 
     const discord_user_id = String(obj.discord_user_id || "").trim();
     const tier = String(obj.tier || "").trim();
+    const days = obj.days;
+    const hours = obj.hours;
+    const minutes = obj.minutes;
+    const is_upgrade = obj.is_upgrade;
     if (!discord_user_id || !/^\d+$/.test(discord_user_id)) {
       res.statusCode = 400;
       res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -53,10 +57,42 @@ module.exports = async (req, res) => {
     }
 
     try {
+      const hasDuration = days != null || hours != null || minutes != null;
+      if (hasDuration) {
+        const result = await applyMembershipChange(discord_user_id, {
+          tier,
+          days,
+          hours,
+          minutes,
+          is_upgrade,
+        });
+        res.statusCode = 200;
+        res.setHeader("Content-Type", "application/json; charset=utf-8");
+        res.end(
+          JSON.stringify({
+            ok: true,
+            mode: "timed_membership",
+            discord_user_id,
+            tier,
+            is_upgrade: !!is_upgrade,
+            membership: result.membership,
+          })
+        );
+        return;
+      }
+
       await setTier(discord_user_id, tier);
       res.statusCode = 200;
       res.setHeader("Content-Type", "application/json; charset=utf-8");
-      res.end(JSON.stringify({ ok: true, discord_user_id, tier }));
+      res.end(
+        JSON.stringify({
+          ok: true,
+          mode: "manual_tier_only",
+          discord_user_id,
+          tier,
+          tip: "如需按首充/续费时长计算到期，请传 days/hours/minutes",
+        })
+      );
     } catch (e) {
       res.statusCode = 500;
       res.setHeader("Content-Type", "application/json; charset=utf-8");
