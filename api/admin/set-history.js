@@ -1,15 +1,7 @@
-let kv = null;
-try {
-  ({ kv } = require("@vercel/kv"));
-} catch {
-  kv = null;
-}
 const { getMongoDb } = require("../_lib/mongo");
 
-const HISTORY_KV_KEY = process.env.HISTORY_KV_KEY || "history:signal_data";
 const HISTORY_COLLECTION = process.env.MONGODB_HISTORY_COLLECTION || "portal_data";
 const HISTORY_DOC_ID = process.env.MONGODB_HISTORY_DOC_ID || "signal_history";
-const KV_ENABLED = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 
 function normalizeSignalListShape(obj) {
   if (Array.isArray(obj)) return obj;
@@ -29,10 +21,10 @@ module.exports = async (req, res) => {
     return;
   }
   const db = await getMongoDb();
-  if (!db && !(kv && KV_ENABLED)) {
+  if (!db) {
     res.statusCode = 500;
     res.setHeader("Content-Type", "application/json; charset=utf-8");
-    res.end(JSON.stringify({ error: "missing_storage", detail: "请配置 MongoDB Atlas 或连接 Vercel KV" }));
+    res.end(JSON.stringify({ error: "missing_storage", detail: "请配置 MongoDB Atlas" }));
     return;
   }
 
@@ -80,21 +72,9 @@ module.exports = async (req, res) => {
         updated_at: new Date().toISOString(),
       };
 
-      const targets = [];
-      if (db) {
-        await db
-          .collection(HISTORY_COLLECTION)
-          .updateOne({ _id: HISTORY_DOC_ID }, { $set: payload }, { upsert: true });
-        targets.push("mongo");
-      }
-      if (kv && KV_ENABLED) {
-        try {
-          await kv.set(HISTORY_KV_KEY, payload);
-          targets.push("kv");
-        } catch {
-          // Mongo is primary; ignore KV sync errors.
-        }
-      }
+      await db
+        .collection(HISTORY_COLLECTION)
+        .updateOne({ _id: HISTORY_DOC_ID }, { $set: payload }, { upsert: true });
 
       res.statusCode = 200;
       res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -102,9 +82,7 @@ module.exports = async (req, res) => {
         JSON.stringify({
           ok: true,
           rows: list.length,
-          targets,
           mongo: { collection: HISTORY_COLLECTION, doc_id: HISTORY_DOC_ID },
-          kv: { key: HISTORY_KV_KEY },
         })
       );
     } catch (e) {

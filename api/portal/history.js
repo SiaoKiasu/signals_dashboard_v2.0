@@ -6,18 +6,9 @@ const { SESSION_COOKIE, verifySessionToken } = require("../_lib/session");
 const { getTier } = require("../_lib/tiers");
 const { getMongoDb } = require("../_lib/mongo");
 
-let kv = null;
-try {
-  ({ kv } = require("@vercel/kv"));
-} catch {
-  kv = null;
-}
-const KV_ENABLED = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
-
 const CUTOFF = new Date("2022-11-11T00:00:00Z");
 const FORCE_SIGNAL2_TO_5 = new Set(["2026-02-18", "2025-11-17", "2025-03-06"]);
 const ALL_SIGNALS = ["signal2", "signal7", "signal9", "signal18"];
-const HISTORY_KV_KEY = process.env.HISTORY_KV_KEY || "history:signal_data";
 const HISTORY_COLLECTION = process.env.MONGODB_HISTORY_COLLECTION || "portal_data";
 const HISTORY_DOC_ID = process.env.MONGODB_HISTORY_DOC_ID || "signal_history";
 
@@ -72,19 +63,7 @@ async function loadSignalData() {
     }
   }
 
-  // 2) 回退读 KV
-  if (kv && KV_ENABLED) {
-    try {
-      const kvObj = await kv.get(HISTORY_KV_KEY);
-      if (kvObj) {
-        return normalizeSignalListShape(kvObj);
-      }
-    } catch {
-      // Ignore KV runtime errors and fallback to file.
-    }
-  }
-
-  // 3) 回退本地文件（本地开发/应急）
+  // 2) 回退本地文件（本地开发/应急）
   const p = path.join(process.cwd(), "v1.0", "signal_data.json");
   const raw = fs.readFileSync(p, "utf-8");
   const obj = JSON.parse(raw);

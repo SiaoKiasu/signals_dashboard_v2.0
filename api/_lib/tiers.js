@@ -1,14 +1,6 @@
-let kv = null;
-try {
-  // Optional at runtime; requires Vercel KV to be connected
-  ({ kv } = require("@vercel/kv"));
-} catch {
-  kv = null;
-}
 const { getMongoDb } = require("./mongo");
 
 const MEMBERS_COLLECTION = process.env.MONGODB_MEMBERS_COLLECTION || "members";
-const KV_ENABLED = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 
 function isValidTier(t) {
   return t === "pro" || t === "basic";
@@ -24,17 +16,7 @@ async function getTier(discord_user_id) {
     if (doc && isValidTier(doc.tier)) return doc.tier;
   }
 
-  // 2) KV (if available)
-  if (kv && KV_ENABLED) {
-    try {
-      const t = await kv.get(`tier:${discord_user_id}`);
-      if (isValidTier(t)) return t;
-    } catch {
-      // Ignore KV runtime errors and continue fallback chain.
-    }
-  }
-
-  // 3) Env allowlist (fallback)
+  // 2) Env allowlist (fallback)
   const proIds = (process.env.PRO_DISCORD_IDS || "")
     .split(",")
     .map((s) => s.trim())
@@ -50,36 +32,21 @@ async function setTier(discord_user_id, tier) {
   }
 
   const id = String(discord_user_id);
-  let wrote = false;
-
   const db = await getMongoDb();
-  if (db) {
-    await db.collection(MEMBERS_COLLECTION).updateOne(
-      { discord_user_id: id },
-      {
-        $set: {
-          discord_user_id: id,
-          tier,
-          updated_at: new Date().toISOString(),
-        },
+  if (!db) {
+    throw new Error("未配置 MongoDB，无法写入会员等级");
+  }
+  await db.collection(MEMBERS_COLLECTION).updateOne(
+    { discord_user_id: id },
+    {
+      $set: {
+        discord_user_id: id,
+        tier,
+        updated_at: new Date().toISOString(),
       },
-      { upsert: true }
-    );
-    wrote = true;
-  }
-
-  if (kv && KV_ENABLED) {
-    try {
-      await kv.set(`tier:${id}`, tier);
-      wrote = true;
-    } catch {
-      // Mongo is primary; ignore KV sync errors.
-    }
-  }
-
-  if (!wrote) {
-    throw new Error("未配置 MongoDB 或 Vercel KV，无法写入会员等级");
-  }
+    },
+    { upsert: true }
+  );
 
   return { ok: true };
 }
