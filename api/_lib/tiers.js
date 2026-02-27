@@ -8,6 +8,7 @@ try {
 const { getMongoDb } = require("./mongo");
 
 const MEMBERS_COLLECTION = process.env.MONGODB_MEMBERS_COLLECTION || "members";
+const KV_ENABLED = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 
 function isValidTier(t) {
   return t === "pro" || t === "basic";
@@ -24,9 +25,13 @@ async function getTier(discord_user_id) {
   }
 
   // 2) KV (if available)
-  if (kv) {
-    const t = await kv.get(`tier:${discord_user_id}`);
-    if (isValidTier(t)) return t;
+  if (kv && KV_ENABLED) {
+    try {
+      const t = await kv.get(`tier:${discord_user_id}`);
+      if (isValidTier(t)) return t;
+    } catch {
+      // Ignore KV runtime errors and continue fallback chain.
+    }
   }
 
   // 3) Env allowlist (fallback)
@@ -63,9 +68,13 @@ async function setTier(discord_user_id, tier) {
     wrote = true;
   }
 
-  if (kv) {
-    await kv.set(`tier:${id}`, tier);
-    wrote = true;
+  if (kv && KV_ENABLED) {
+    try {
+      await kv.set(`tier:${id}`, tier);
+      wrote = true;
+    } catch {
+      // Mongo is primary; ignore KV sync errors.
+    }
   }
 
   if (!wrote) {

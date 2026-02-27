@@ -12,6 +12,7 @@ try {
 } catch {
   kv = null;
 }
+const KV_ENABLED = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 
 const CUTOFF = new Date("2022-11-11T00:00:00Z");
 const FORCE_SIGNAL2_TO_5 = new Set(["2026-02-18", "2025-11-17", "2025-03-06"]);
@@ -72,10 +73,14 @@ async function loadSignalData() {
   }
 
   // 2) 回退读 KV
-  if (kv) {
-    const kvObj = await kv.get(HISTORY_KV_KEY);
-    if (kvObj) {
-      return normalizeSignalListShape(kvObj);
+  if (kv && KV_ENABLED) {
+    try {
+      const kvObj = await kv.get(HISTORY_KV_KEY);
+      if (kvObj) {
+        return normalizeSignalListShape(kvObj);
+      }
+    } catch {
+      // Ignore KV runtime errors and fallback to file.
     }
   }
 
