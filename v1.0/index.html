@@ -513,8 +513,9 @@
     <div id="category-tooltip" class="category-tooltip"></div>
 
     <script>
-        // 配置要展示的信号（按你给的顺序）
-        const AVAILABLE_SIGNALS = ['signal2', 'signal7', 'signal9', 'signal18'];
+        // 全量信号顺序（最终展示会按会员权限过滤）
+        const ALL_SIGNALS = ['signal2', 'signal7', 'signal9', 'signal18'];
+        let availableSignals = ALL_SIGNALS.slice();
 
         // 分类方案（示例文案：你后续自己补充/改写即可）
         const SIGNAL_CATEGORIES = {
@@ -562,7 +563,7 @@
             return `${yyyy}-${mm}-${dd}`;
         }
 
-        let currentSignal = AVAILABLE_SIGNALS[0];
+        let currentSignal = ALL_SIGNALS[0];
         let rawData = [];
         // 用于快速通过日期查找数据的 Map，方便 Tooltip 渲染
         let dataMap = new Map();
@@ -886,7 +887,7 @@
             if (!el) return;
             el.innerHTML = '';
 
-            const members = AVAILABLE_SIGNALS.filter(sig => (SIGNAL_CONFIG[sig] || {}).category === currentCategory);
+            const members = availableSignals.filter(sig => (SIGNAL_CONFIG[sig] || {}).category === currentCategory);
             members.forEach(sig => {
                 const btn = document.createElement('button');
                 btn.innerText = (SIGNAL_CONFIG[sig] && SIGNAL_CONFIG[sig].name) ? SIGNAL_CONFIG[sig].name : sig.toUpperCase();
@@ -903,17 +904,31 @@
         }
 
         function initButtons() {
+            if (!availableSignals.length) {
+                document.getElementById('signal-buttons').innerHTML = '';
+                document.getElementById('chart-container').innerHTML =
+                    `<div style="color:#f8cb46; text-align:center; margin-top:20%; font-size:14px;">
+                        当前账号没有可展示的信号，请联系管理员配置会员权限。
+                    </div>`;
+                return;
+            }
             // 初始分类跟随默认信号
+            if (!availableSignals.includes(currentSignal)) {
+                currentSignal = availableSignals[0];
+            }
             currentCategory = (SIGNAL_CONFIG[currentSignal] || {}).category || CATEGORY_ORDER[0];
             renderCategoryTabs();
             renderSignalButtons();
         }
 
         async function loadData() {
+            // 无论历史数据是否可用，都先渲染登录区，避免按钮被错误隐藏
+            renderAuth();
             try {
                 // Vercel 部署后：从后端 API 拉数据（带鉴权/按会员裁剪）
                 // 本地静态打开/没有后端时：回退读取同目录 signal_data.json
                 let json = null;
+                let apiErr = null;
                 try {
                     const r = await fetch('/api/portal/history', { credentials: 'include' });
                     if (r.status === 401) {
@@ -922,18 +937,32 @@
                     }
                     if (r.ok) {
                         json = await r.json();
+                    } else {
+                        const t = await r.text();
+                        apiErr = new Error(`API_${r.status}: ${t}`);
                     }
                 } catch (e) {
-                    // ignore, try fallback below
+                    apiErr = e;
                 }
 
                 if (!json) {
-                    const response = await fetch('./signal_data.json');
-                    json = await response.json();
+                    // 仅本地开发模式回退到静态文件；线上环境强制走后端鉴权数据
+                    const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
+                    if (isLocal) {
+                        const response = await fetch('./signal_data.json');
+                        json = await response.json();
+                    } else {
+                        throw apiErr || new Error('history_api_unavailable');
+                    }
                 }
 
                 const cutoff = new Date('2022-11-11T00:00:00');
                 const list = (json.data.signal_list || []);
+                if (Array.isArray(json.allowed_signals) && json.allowed_signals.length) {
+                    availableSignals = ALL_SIGNALS.filter(sig => json.allowed_signals.includes(sig));
+                } else {
+                    availableSignals = ALL_SIGNALS.slice();
+                }
 
                 // 1) 先做信号值改写（画图前）
                 list.forEach(item => {
@@ -955,7 +984,7 @@
                 });
                 
                 initButtons();
-                renderChart(AVAILABLE_SIGNALS[0]);
+                renderChart(availableSignals[0]);
 
                 // Portal top cards (independent from chart)
                 renderMarketSnapshot();
@@ -964,9 +993,10 @@
                 renderAuth();
             } catch (err) {
                 console.error("数据加载失败:", err);
+                renderAuth();
                 document.getElementById('chart-container').innerHTML = 
                     `<div style="color:#f23645; text-align:center; margin-top:20%; font-size:14px;">
-                        Data mapping failed. If deployed on Vercel, ensure you are logged in. If local, ensure signal_data.json exists and you are running a local HTTP server.
+                        数据加载失败：请先检查后端接口与环境变量（SESSION_SECRET/KV）是否已生效。
                     </div>`;
             }
         }
