@@ -575,9 +575,9 @@
                     <div class="t2">OI / Funding / Liquidation / ETF / Balance / Fear&Greed</div>
                 </div>
                 <div class="charts-grid">
+                    <div id="chart-liquidation" class="chart-iframe"></div>
                     <div id="chart-oi" class="chart-iframe"></div>
                     <div id="chart-funding" class="chart-iframe"></div>
-                    <div id="chart-liquidation" class="chart-iframe"></div>
                     <div id="chart-etf" class="chart-iframe">
                         <div class="chart-select">
                             <select id="etf-symbol-select">
@@ -715,7 +715,7 @@
         }
 
         function sliceRecent(dates, seriesList) {
-            const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+            const cutoff = Date.now() - 180 * 24 * 60 * 60 * 1000;
             const outDates = [];
             const outSeries = (seriesList || []).map(() => []);
             (dates || []).forEach((d, idx) => {
@@ -789,7 +789,7 @@
             const sliced = sliceRecent(data.dates || [], [data.values || [], priceSeries || []]);
             const option = {
                 backgroundColor: 'transparent',
-                title: { text: 'OI', left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
+                title: { text: 'Open Interest', left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
                 tooltip: { trigger: 'axis' },
                 legend: {
                     data: [
@@ -834,7 +834,22 @@
                     textStyle: { color: '#787b86', fontSize: 11 }
                 },
                 grid: { left: '6%', right: '6%', bottom: '14%', top: '18%', containLabel: true },
-                xAxis: { type: 'category', data: sliced.dates, boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', hideOverlap: true } },
+                xAxis: {
+                    type: 'category',
+                    data: sliced.dates,
+                    boundaryGap: false,
+                    axisLine: { show: false },
+                    axisTick: { show: false },
+                    axisLabel: {
+                        color: '#787b86',
+                        hideOverlap: true,
+                        formatter: (v) => {
+                            const t = String(v || '');
+                            if (t.includes(' ')) return t;
+                            return t;
+                        }
+                    }
+                },
                 yAxis: [
                     { type: 'value', scale: true, min: 'dataMin', max: 'dataMax', splitNumber: 5, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatPercent(v, 4) } },
                     { type: 'value', scale: true, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } }
@@ -941,8 +956,34 @@
                     { type: 'value', scale: true, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } }
                 ],
                 series: [
-                    { name: 'Index', type: 'line', data: sliced.series[0] || [], symbol: 'none', lineStyle: { color: '#f8cb46', width: 2 } },
-                    { name: 'Price', type: 'line', data: sliced.series[1] || [], yAxisIndex: 1, symbol: 'none', lineStyle: { color: '#2962ff', width: 1.6 } }
+                    {
+                        name: 'Index',
+                        type: 'line',
+                        data: sliced.series[0] || [],
+                        symbol: 'none',
+                        lineStyle: { color: '#f8cb46', width: 2 },
+                        markArea: {
+                            silent: true,
+                            data: [
+                                [
+                                    { yAxis: 0, itemStyle: { color: 'rgba(38, 166, 154, 0.12)' } },
+                                    { yAxis: 20 }
+                                ],
+                                [
+                                    { yAxis: 80, itemStyle: { color: 'rgba(242, 54, 69, 0.12)' } },
+                                    { yAxis: 100 }
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        name: 'Price',
+                        type: 'line',
+                        data: sliced.series[1] || [],
+                        yAxisIndex: 1,
+                        symbol: 'none',
+                        lineStyle: { color: '#2962ff', width: 1.6 }
+                    }
                 ]
             };
             c.setOption(option, { notMerge: true, lazyUpdate: false });

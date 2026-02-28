@@ -14,6 +14,22 @@ const ETF_TICKERS = {
   XRP: [],
 };
 
+function toDateTimeKey(ts) {
+  if (!ts) return "";
+  let t = ts;
+  if (typeof t === "string") t = Number(t);
+  if (typeof t === "number" && t > 1e12) t = t / 1000;
+  if (typeof t === "number" && Number.isFinite(t)) {
+    const d = new Date(t * 1000);
+    const yyyy = String(d.getUTCFullYear());
+    const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(d.getUTCDate()).padStart(2, "0");
+    const hh = String(d.getUTCHours()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd} ${hh}:00`;
+  }
+  return String(ts);
+}
+
 let cachedPrices = null;
 let cachedPricesAt = 0;
 
@@ -66,7 +82,7 @@ async function getOi(key) {
   const values = [];
   for (const item of list) {
     if (!item) continue;
-    const d = toDateKey(item.time || item.date || item.timestamp || item.t);
+    const d = toDateTimeKey(item.time || item.date || item.timestamp || item.t);
     if (!d) continue;
     const v = Number(item.close ?? item.openInterest ?? item.value ?? item.oi ?? item.open ?? 0);
     dates.push(d);
