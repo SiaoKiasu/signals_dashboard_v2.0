@@ -77,7 +77,7 @@ async function getOi(key) {
 
 async function getFunding(key) {
   const url =
-    "https://open-api-v4.coinglass.com/api/futures/funding-rate/history?exchange=Binance&symbol=BTCUSDT&interval=8h";
+    "https://open-api-v4.coinglass.com/api/futures/funding-rate/history?exchange=Binance&symbol=BTCUSDT&interval=4h";
   const data = await fetchJson(url, { "CG-API-KEY": key, accept: "application/json" });
   const list = Array.isArray(data && data.data) ? data.data : [];
   const dates = [];

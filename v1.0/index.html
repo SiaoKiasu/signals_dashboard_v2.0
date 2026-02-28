@@ -468,6 +468,21 @@
             border: none;
             border-radius: 10px;
             background: #151924;
+            position: relative;
+        }
+        .chart-select {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            z-index: 5;
+        }
+        .chart-select select {
+            background: rgba(21, 25, 36, 0.9);
+            color: #d1d4dc;
+            border: 1px solid #2a2e39;
+            border-radius: 6px;
+            padding: 4px 6px;
+            font-size: 12px;
         }
         .chart-multi {
             width: 100%;
@@ -559,19 +574,20 @@
                     <div class="t1">Market Indicators</div>
                     <div class="t2">OI / Funding / Liquidation / ETF / Balance / Fear&Greed</div>
                 </div>
-                <div style="margin:0 0 12px 0;">
-                    <select id="etf-symbol-select" style="background:#151924; color:#d1d4dc; border:1px solid #2a2e39; border-radius:6px; padding:6px 8px;">
-                        <option value="BTC">BTC</option>
-                        <option value="ETH">ETH</option>
-                        <option value="SOL">SOL</option>
-                        <option value="XRP">XRP</option>
-                    </select>
-                </div>
                 <div class="charts-grid">
                     <div id="chart-oi" class="chart-iframe"></div>
                     <div id="chart-funding" class="chart-iframe"></div>
                     <div id="chart-liquidation" class="chart-iframe"></div>
-                    <div id="chart-etf" class="chart-iframe"></div>
+                    <div id="chart-etf" class="chart-iframe">
+                        <div class="chart-select">
+                            <select id="etf-symbol-select">
+                                <option value="BTC">BTC</option>
+                                <option value="ETH">ETH</option>
+                                <option value="SOL">SOL</option>
+                                <option value="XRP">XRP</option>
+                            </select>
+                        </div>
+                    </div>
                     <div id="chart-exbalance" class="chart-iframe"></div>
                     <div id="chart-feargreed" class="chart-iframe"></div>
                 </div>
@@ -775,7 +791,16 @@
                 backgroundColor: 'transparent',
                 title: { text: 'OI', left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
                 tooltip: { trigger: 'axis' },
-                legend: { data: ['OI', 'Price'], top: 6, right: 10, icon: 'rect', itemWidth: 16, itemHeight: 3, textStyle: { color: '#787b86', fontSize: 11 } },
+                legend: {
+                    data: [
+                        { name: 'OI', icon: 'rect', itemStyle: { color: '#f8cb46' } },
+                        { name: 'Price', icon: 'rect', itemStyle: { color: '#2962ff' } }
+                    ],
+                    top: 6,
+                    right: 10,
+                    inactiveColor: '#3a3f4b',
+                    textStyle: { color: '#787b86', fontSize: 11 }
+                },
                 grid: { left: '6%', right: '6%', bottom: '14%', top: '18%', containLabel: true },
                 xAxis: { type: 'category', data: sliced.dates, boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', hideOverlap: true } },
                 yAxis: [
@@ -798,11 +823,20 @@
                 backgroundColor: 'transparent',
                 title: { text: 'Funding Rate', left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
                 tooltip: { trigger: 'axis' },
-                legend: { data: ['Funding', 'Price'], top: 6, right: 10, icon: 'rect', itemWidth: 16, itemHeight: 3, textStyle: { color: '#787b86', fontSize: 11 } },
+                legend: {
+                    data: [
+                        { name: 'Funding', icon: 'rect', itemStyle: { color: '#f8cb46' } },
+                        { name: 'Price', icon: 'rect', itemStyle: { color: '#2962ff' } }
+                    ],
+                    top: 6,
+                    right: 10,
+                    inactiveColor: '#3a3f4b',
+                    textStyle: { color: '#787b86', fontSize: 11 }
+                },
                 grid: { left: '6%', right: '6%', bottom: '14%', top: '18%', containLabel: true },
                 xAxis: { type: 'category', data: sliced.dates, boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', hideOverlap: true } },
                 yAxis: [
-                    { type: 'value', scale: true, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatPercent(v, 4) } },
+                    { type: 'value', scale: true, min: 'dataMin', max: 'dataMax', splitNumber: 5, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatPercent(v, 4) } },
                     { type: 'value', scale: true, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } }
                 ],
                 series: [
@@ -832,23 +866,19 @@
             c.setOption(option, { notMerge: true, lazyUpdate: false });
         }
 
-        function renderEtfChart(data, etfSymbol, priceSeries) {
+        function renderEtfChart(data, etfSymbol) {
             const c = getChart('chart-etf');
             if (!c) return;
-            const sliced = sliceRecent(data.dates || [], [data.total || [], priceSeries || []]);
+            const sliced = sliceRecent(data.dates || [], [data.total || []]);
             const option = {
                 backgroundColor: 'transparent',
                 title: { text: `ETF Net Flow (${etfSymbol || 'BTC'})`, left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
                 tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
                 grid: { left: '6%', right: '6%', bottom: '14%', top: '18%', containLabel: true },
                 xAxis: { type: 'category', data: sliced.dates, boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', hideOverlap: true } },
-                yAxis: [
-                    { type: 'value', scale: true, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
-                    { type: 'value', scale: true, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } }
-                ],
+                yAxis: { type: 'value', scale: true, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
                 series: [
-                    { name: 'ETF Flow', type: 'bar', data: sliced.series[0] || [], barWidth: 1, itemStyle: { color: (p) => (p.value || 0) >= 0 ? '#26a69a' : '#f23645' } },
-                    { name: 'Price', type: 'line', data: sliced.series[1] || [], yAxisIndex: 1, symbol: 'none', lineStyle: { color: '#2962ff', width: 1.6 } }
+                    { name: 'ETF Flow', type: 'bar', data: sliced.series[0] || [], barWidth: 2, itemStyle: { color: (p) => (p.value || 0) >= 0 ? '#26a69a' : '#f23645' } }
                 ]
             };
             c.setOption(option, { notMerge: true, lazyUpdate: false });
@@ -862,7 +892,16 @@
                 backgroundColor: 'transparent',
                 title: { text: 'Exchange Balance', left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
                 tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
-                legend: { data: ['Balance', 'Price'], top: 6, right: 10, icon: 'rect', itemWidth: 16, itemHeight: 3, textStyle: { color: '#787b86', fontSize: 11 } },
+                legend: {
+                    data: [
+                        { name: 'Balance', icon: 'rect', itemStyle: { color: '#f8cb46' } },
+                        { name: 'Price', icon: 'rect', itemStyle: { color: '#2962ff' } }
+                    ],
+                    top: 6,
+                    right: 10,
+                    inactiveColor: '#3a3f4b',
+                    textStyle: { color: '#787b86', fontSize: 11 }
+                },
                 grid: { left: '6%', right: '6%', bottom: '14%', top: '18%', containLabel: true },
                 xAxis: { type: 'category', data: sliced.dates, boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', hideOverlap: true } },
                 yAxis: [
@@ -885,7 +924,16 @@
                 backgroundColor: 'transparent',
                 title: { text: 'Fear & Greed', left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
                 tooltip: { trigger: 'axis' },
-                legend: { data: ['Index', 'Price'], top: 6, right: 10, icon: 'rect', itemWidth: 16, itemHeight: 3, textStyle: { color: '#787b86', fontSize: 11 } },
+                legend: {
+                    data: [
+                        { name: 'Index', icon: 'rect', itemStyle: { color: '#f8cb46' } },
+                        { name: 'Price', icon: 'rect', itemStyle: { color: '#2962ff' } }
+                    ],
+                    top: 6,
+                    right: 10,
+                    inactiveColor: '#3a3f4b',
+                    textStyle: { color: '#787b86', fontSize: 11 }
+                },
                 grid: { left: '6%', right: '6%', bottom: '14%', top: '18%', containLabel: true },
                 xAxis: { type: 'category', data: sliced.dates, boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', hideOverlap: true } },
                 yAxis: [
@@ -914,11 +962,10 @@
                 const fear = payload.fearGreed || { dates: [], values: [], prices: [] };
                 const oiPrice = alignSeries(oi.dates || [], exb.dates || [], exb.prices || []);
                 const fundingPrice = alignSeries(funding.dates || [], exb.dates || [], exb.prices || []);
-                const etfPrice = alignSeries(etf.dates || [], exb.dates || [], exb.prices || []);
                 renderOiChart(oi, oiPrice);
                 renderFundingChart(funding, fundingPrice);
                 renderLiquidationChart(payload.liquidation || { exchanges: [], long: [], short: [] });
-                renderEtfChart(etf, etfSymbol, etfPrice);
+                renderEtfChart(etf, etfSymbol);
                 renderExchangeBalanceChart(exb);
                 renderFearGreedChart(fear);
                 if (payload.prices) updateMarketCards(payload.prices);
@@ -931,11 +978,9 @@
 
         function renderMarketBySymbol(symbol) {
             if (marketPayloadCache) {
-                const exb = marketPayloadCache.exchangeBalance || { dates: [], total: [], prices: [] };
                 const etfAll = marketPayloadCache.etf || {};
                 const etf = etfAll[symbol] || { dates: [], total: [] };
-                const etfPrice = alignSeries(etf.dates || [], exb.dates || [], exb.prices || []);
-                renderEtfChart(etf, symbol, etfPrice);
+                renderEtfChart(etf, symbol);
                 return;
             }
             loadMarketCharts();
