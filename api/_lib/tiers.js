@@ -29,7 +29,10 @@ function parseBool(v) {
 async function getMemberRecord(discord_user_id) {
   const db = await getMongoDb();
   if (!db) return null;
-  const doc = await db.collection(MEMBERS_COLLECTION).findOne({ discord_user_id: String(discord_user_id) });
+  const id = String(discord_user_id);
+  const doc =
+    (await db.collection(MEMBERS_COLLECTION).findOne({ _id: id })) ||
+    (await db.collection(MEMBERS_COLLECTION).findOne({ discord_user_id: id }));
   return doc || null;
 }
 
@@ -37,11 +40,17 @@ async function getTier(discord_user_id) {
   // 1) MongoDB Atlas (if configured)
   const db = await getMongoDb();
   if (db) {
-    const doc = await db
-      .collection(MEMBERS_COLLECTION)
-      .findOne({ discord_user_id: String(discord_user_id) }, { projection: { tier: 1, expires_at: 1 } });
+    const id = String(discord_user_id);
+    const doc =
+      (await db
+        .collection(MEMBERS_COLLECTION)
+        .findOne({ _id: id }, { projection: { tier: 1, expires_at: 1 } })) ||
+      (await db
+        .collection(MEMBERS_COLLECTION)
+        .findOne({ discord_user_id: id }, { projection: { tier: 1, expires_at: 1 } }));
     if (doc && isValidTier(doc.tier)) {
       if (doc.tier === "basic") return "basic";
+      if (!doc.expires_at) return doc.tier;
       const expMs = Date.parse(String(doc.expires_at || ""));
       if (Number.isFinite(expMs) && expMs > Date.now()) return doc.tier;
       return "basic";
@@ -76,6 +85,7 @@ async function setTier(discord_user_id, tier) {
   }
   const nowIso = new Date().toISOString();
   const setObj = {
+    _id: id,
     discord_user_id: id,
     tier,
     updated_at: nowIso,
@@ -84,7 +94,7 @@ async function setTier(discord_user_id, tier) {
     setObj.expires_at = nowIso;
   }
   await db.collection(MEMBERS_COLLECTION).updateOne(
-    { discord_user_id: id },
+    { _id: id },
     {
       $set: setObj,
       $setOnInsert: { created_at: nowIso, first_opened_at: nowIso },
@@ -127,7 +137,9 @@ async function applyMembershipChange(discord_user_id, input) {
 
   const now = Date.now();
   const nowIso = new Date(now).toISOString();
-  const existing = await db.collection(MEMBERS_COLLECTION).findOne({ discord_user_id: id });
+  const existing =
+    (await db.collection(MEMBERS_COLLECTION).findOne({ _id: id })) ||
+    (await db.collection(MEMBERS_COLLECTION).findOne({ discord_user_id: id }));
   const firstOpenedAt = existing && existing.first_opened_at ? existing.first_opened_at : nowIso;
   const existingExpMs = Date.parse(String(existing && existing.expires_at ? existing.expires_at : ""));
   const baseMs = isUpgrade
@@ -140,6 +152,7 @@ async function applyMembershipChange(discord_user_id, input) {
 
   const action = isUpgrade ? "upgrade" : (Number.isFinite(existingExpMs) && existingExpMs > now ? "renew" : "first");
   const update = {
+    _id: id,
     discord_user_id: id,
     tier,
     first_opened_at: firstOpenedAt,
@@ -156,7 +169,7 @@ async function applyMembershipChange(discord_user_id, input) {
   };
 
   await db.collection(MEMBERS_COLLECTION).updateOne(
-    { discord_user_id: id },
+    { _id: id },
     {
       $set: update,
       $setOnInsert: { created_at: nowIso },
