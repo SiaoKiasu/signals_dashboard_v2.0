@@ -799,16 +799,31 @@
 
         async function loadMarketCharts() {
             try {
-                const [oi, funding, liquidation, exchangeBalance] = await Promise.all([
-                    fetchJson('/api/market/oi'),
-                    fetchJson('/api/market/funding'),
-                    fetchJson('/api/market/liquidation'),
-                    fetchJson('/api/market/exchange-balance')
-                ]);
-                renderOiChart(oi);
-                renderFundingChart(funding);
-                renderLiquidationChart(liquidation);
-                renderExchangeBalanceChart(exchangeBalance);
+                const payload = await fetchJson('/api/market/summary');
+                renderOiChart(payload.oi || { dates: [], values: [] });
+                renderFundingChart(payload.funding || { dates: [], values: [] });
+                renderLiquidationChart(payload.liquidation || { exchanges: [], long: [], short: [] });
+                renderExchangeBalanceChart(payload.exchangeBalance || { dates: [], total: [], prices: [] });
+                if (payload.prices && payload.premium) {
+                    const prices = payload.prices;
+                    const premium = payload.premium;
+                    const btc = Number.isFinite(prices.btc) ? prices.btc : null;
+                    const eth = Number.isFinite(prices.eth) ? prices.eth : null;
+                    const usdc = Number.isFinite(prices.usdc) ? prices.usdc : null;
+                    const premiumRate = Number.isFinite(premium.premium_rate) ? premium.premium_rate : null;
+                    window.PORTAL_MARKET_CARDS = [
+                        { symbol: 'BTC', name: 'Bitcoin', icon: '฿', theme: 'theme-btc', priceText: btc != null ? `$${btc.toLocaleString('en-US', { maximumFractionDigits: 2 })}` : '-', dominanceLabel: 'Source', dominanceText: 'Binance' },
+                        { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', theme: 'theme-eth', priceText: eth != null ? `$${eth.toLocaleString('en-US', { maximumFractionDigits: 2 })}` : '-', dominanceLabel: 'Source', dominanceText: 'Binance' },
+                        { symbol: 'USDC', name: 'USDC', icon: '$', theme: 'theme-usdc', priceText: usdc != null ? `$${usdc.toFixed(4)}` : '-', dominanceLabel: 'Source', dominanceText: 'Binance' },
+                    ];
+                    window.PORTAL_MARKET_METRICS = [
+                        { key: 'BTC', value: btc != null ? `$${btc.toLocaleString('en-US', { maximumFractionDigits: 2 })}` : '-', sub: 'Binance BTCUSDT' },
+                        { key: 'ETH', value: eth != null ? `$${eth.toLocaleString('en-US', { maximumFractionDigits: 2 })}` : '-', sub: 'Binance ETHUSDT' },
+                        { key: 'USDC', value: usdc != null ? `$${usdc.toFixed(4)}` : '-', sub: 'Binance USDCUSDT' },
+                        { key: 'Coinbase Premium', value: premiumRate != null ? `${(premiumRate * 100).toFixed(4)}%` : '-', sub: 'Latest premium_rate' },
+                    ];
+                    renderMarketSnapshot();
+                }
             } catch (e) {
                 console.error('加载行情图表失败', e);
             }
@@ -816,8 +831,9 @@
 
         async function loadEtf(symbol) {
             try {
-                const data = await fetchJson(`/api/market/etf?symbol=${encodeURIComponent(symbol)}`);
-                renderEtfChart(data);
+                const payload = await fetchJson('/api/market/summary');
+                const etf = payload && payload.etf ? payload.etf : {};
+                renderEtfChart(etf[symbol] || { dates: [], total: [], detail: {}, others: [], tickers: [] });
             } catch (e) {
                 console.error('加载 ETF 图表失败', e);
             }
@@ -866,14 +882,13 @@
 
         async function loadMarketSnapshotLive() {
             try {
-                const [prices, premium] = await Promise.all([
-                    fetchJson('/api/market/prices'),
-                    fetchJson('/api/market/coinbase-premium')
-                ]);
-                const btc = prices && Number.isFinite(prices.btc) ? prices.btc : null;
-                const eth = prices && Number.isFinite(prices.eth) ? prices.eth : null;
-                const usdc = prices && Number.isFinite(prices.usdc) ? prices.usdc : null;
-                const premiumRate = premium && Number.isFinite(premium.premium_rate) ? premium.premium_rate : null;
+                const payload = await fetchJson('/api/market/summary?scope=prices');
+                const prices = payload && payload.prices ? payload.prices : {};
+                const premium = payload && payload.premium ? payload.premium : {};
+                const btc = Number.isFinite(prices.btc) ? prices.btc : null;
+                const eth = Number.isFinite(prices.eth) ? prices.eth : null;
+                const usdc = Number.isFinite(prices.usdc) ? prices.usdc : null;
+                const premiumRate = Number.isFinite(premium.premium_rate) ? premium.premium_rate : null;
 
                 window.PORTAL_MARKET_CARDS = [
                     { symbol: 'BTC', name: 'Bitcoin', icon: '฿', theme: 'theme-btc', priceText: btc != null ? `$${btc.toLocaleString('en-US', { maximumFractionDigits: 2 })}` : '-', dominanceLabel: 'Source', dominanceText: 'Binance' },
