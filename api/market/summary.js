@@ -20,7 +20,7 @@ let cachedPricesAt = 0;
 async function getPrices() {
   try {
     const url =
-      "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,usd-coin&vs_currencies=usd";
+      "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,dogecoin&vs_currencies=usd";
     const r = await fetch(url);
     if (!r.ok) {
       const t = await r.text();
@@ -30,9 +30,9 @@ async function getPrices() {
     const out = {
       btc: Number(j.bitcoin && j.bitcoin.usd),
       eth: Number(j.ethereum && j.ethereum.usd),
-      usdc: Number(j["usd-coin"] && j["usd-coin"].usd),
+      doge: Number(j.dogecoin && j.dogecoin.usd),
     };
-    if (Number.isFinite(out.btc) || Number.isFinite(out.eth) || Number.isFinite(out.usdc)) {
+    if (Number.isFinite(out.btc) || Number.isFinite(out.eth) || Number.isFinite(out.doge)) {
       cachedPrices = out;
       cachedPricesAt = Date.now();
     }
@@ -41,7 +41,7 @@ async function getPrices() {
     if (cachedPrices && Date.now() - cachedPricesAt < 2 * 60 * 1000) {
       return cachedPrices;
     }
-    return { btc: null, eth: null, usdc: null };
+    return { btc: null, eth: null, doge: null };
   }
 }
 
@@ -75,7 +75,7 @@ async function getOi(key) {
 
 async function getFunding(key) {
   const url =
-    "https://open-api-v4.coinglass.com/api/futures/funding-rate/history?exchange=Binance&symbol=BTCUSDT&interval=1d";
+    "https://open-api-v4.coinglass.com/api/futures/funding-rate/history?exchange=Binance&symbol=BTCUSDT&interval=8h";
   const data = await fetchJson(url, { "CG-API-KEY": key, accept: "application/json" });
   const list = Array.isArray(data && data.data) ? data.data : [];
   const dates = [];
@@ -182,6 +182,45 @@ async function getExchangeBalance(key) {
   return { dates, total, prices };
 }
 
+async function getFearGreed(key) {
+  const url = "https://open-api-v4.coinglass.com/api/index/fear-greed-history";
+  const data = await fetchJson(url, { "CG-API-KEY": key, accept: "application/json" });
+  const payload = data && data.data ? data.data : {};
+  const times = Array.isArray(payload.time_list) ? payload.time_list : [];
+  const values = Array.isArray(payload.data_list) ? payload.data_list : [];
+  let latest = null;
+  let latestTime = null;
+  for (let i = 0; i < times.length; i += 1) {
+    const t = Number(times[i] || 0);
+    const v = Number(values[i]);
+    if (!Number.isFinite(t) || !Number.isFinite(v)) continue;
+    if (latestTime == null || t > latestTime) {
+      latestTime = t;
+      latest = v;
+    }
+  }
+  return { value: latest, time: latestTime };
+}
+
+async function getBtcDominance(key) {
+  const url = "https://open-api-v4.coinglass.com/api/index/bitcoin-dominance";
+  const data = await fetchJson(url, { "CG-API-KEY": key, accept: "application/json" });
+  const list = Array.isArray(data && data.data) ? data.data : [];
+  let latest = null;
+  let latestTime = null;
+  for (const item of list) {
+    if (!item) continue;
+    const t = Number(item.timestamp || 0);
+    const v = Number(item.bitcoin_dominance);
+    if (!Number.isFinite(t) || !Number.isFinite(v)) continue;
+    if (latestTime == null || t > latestTime) {
+      latestTime = t;
+      latest = v;
+    }
+  }
+  return { value: latest, time: latestTime };
+}
+
 module.exports = async (req, res) => {
   try {
     const key = requireApiKey();
@@ -190,7 +229,7 @@ module.exports = async (req, res) => {
 
     if (scope === "prices") {
       const [pricesRes, premiumRes] = await Promise.allSettled([getPrices(), getCoinbasePremium(key)]);
-      const prices = pricesRes.status === "fulfilled" ? pricesRes.value : { btc: null, eth: null, usdc: null };
+      const prices = pricesRes.status === "fulfilled" ? pricesRes.value : { btc: null, eth: null, doge: null };
       const premium = premiumRes.status === "fulfilled" ? premiumRes.value : { premium_rate: null };
       sendJson(res, 200, { prices, premium });
       return;
@@ -204,6 +243,8 @@ module.exports = async (req, res) => {
       getLiquidation(key),
       getEtf(key),
       getExchangeBalance(key),
+      getFearGreed(key),
+      getBtcDominance(key),
     ]);
 
     const [
@@ -214,9 +255,11 @@ module.exports = async (req, res) => {
       liquidationRes,
       etfRes,
       exchangeBalanceRes,
+      fearGreedRes,
+      btcDominanceRes,
     ] = results;
 
-    const prices = pricesRes.status === "fulfilled" ? pricesRes.value : { btc: null, eth: null, usdc: null };
+    const prices = pricesRes.status === "fulfilled" ? pricesRes.value : { btc: null, eth: null, doge: null };
     const premium = premiumRes.status === "fulfilled" ? premiumRes.value : { premium_rate: null };
     const oi = oiRes.status === "fulfilled" ? oiRes.value : { dates: [], values: [] };
     const funding = fundingRes.status === "fulfilled" ? fundingRes.value : { dates: [], values: [] };
@@ -225,8 +268,11 @@ module.exports = async (req, res) => {
     const etf = etfRes.status === "fulfilled" ? etfRes.value : {};
     const exchangeBalance =
       exchangeBalanceRes.status === "fulfilled" ? exchangeBalanceRes.value : { dates: [], total: [], prices: [] };
+    const fearGreed = fearGreedRes.status === "fulfilled" ? fearGreedRes.value : { value: null, time: null };
+    const btcDominance =
+      btcDominanceRes.status === "fulfilled" ? btcDominanceRes.value : { value: null, time: null };
 
-    sendJson(res, 200, { prices, premium, oi, funding, liquidation, etf, exchangeBalance });
+    sendJson(res, 200, { prices, premium, oi, funding, liquidation, etf, exchangeBalance, fearGreed, btcDominance });
   } catch (e) {
     sendJson(res, 500, { error: "market_summary_failed", detail: String(e && e.message ? e.message : e) });
   }
