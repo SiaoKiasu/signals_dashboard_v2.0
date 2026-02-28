@@ -766,7 +766,7 @@
             </div>
             <div id="upgrade-status" class="upgrade-status" style="display:none;">
                 <div class="spinner"></div>
-                <div>处理中，请等待确认...</div>
+                <div id="upgrade-status-text">处理中，请等待确认...</div>
             </div>
         </div>
     </div>
@@ -1761,18 +1761,22 @@
             const netEl = document.getElementById('upgrade-network');
             const hashEl = document.getElementById('upgrade-hash');
             const statusEl = document.getElementById('upgrade-status');
+            const statusText = document.getElementById('upgrade-status-text');
             if (!planEl || !netEl || !hashEl || !statusEl) return;
             const chain = netEl.value;
             if (chain === 'solana') {
-                alert('Solana 暂不支持，请不要充值');
+                statusEl.style.display = 'flex';
+                if (statusText) statusText.textContent = 'Solana 暂不支持，请不要充值';
                 return;
             }
             const txHash = String(hashEl.value || '').trim();
             if (!txHash) {
-                alert('请填写交易 Hash');
+                statusEl.style.display = 'flex';
+                if (statusText) statusText.textContent = '请填写交易 Hash';
                 return;
             }
             statusEl.style.display = 'flex';
+            if (statusText) statusText.textContent = '处理中，请等待确认...';
             try {
                 const r = await fetch('/api/payments/verify', {
                     method: 'POST',
@@ -1782,16 +1786,22 @@
                 });
                 const j = await r.json();
                 if (!r.ok || !j.ok) {
-                    alert(j && j.error ? j.error : '验证失败');
+                    if (statusText) {
+                        const msg = j && j.error ? j.error : '验证失败，请重试';
+                        statusText.textContent = msg;
+                    }
                     return;
                 }
-                alert('充值验证成功，会员已更新');
+                if (statusText) statusText.textContent = '充值验证成功，会员已更新';
                 closeUpgradeModal();
                 renderAuth();
             } catch (e) {
-                alert('验证失败，请稍后再试');
+                if (statusText) statusText.textContent = '网络异常，请重试';
             } finally {
-                statusEl.style.display = 'none';
+                setTimeout(() => {
+                    const status = document.getElementById('upgrade-status');
+                    if (status) status.style.display = 'none';
+                }, 1500);
             }
         }
 

@@ -3,7 +3,14 @@ const DEFAULT_PATH = "/";
 function parseCookies(header) {
   const out = {};
   if (!header) return out;
-  const parts = header.split(";");
+  let raw = header;
+  if (typeof raw === "object") {
+    raw = raw.headers && raw.headers.cookie ? raw.headers.cookie : "";
+  }
+  if (Array.isArray(raw)) raw = raw.join("; ");
+  if (typeof raw !== "string") raw = String(raw || "");
+  if (!raw) return out;
+  const parts = raw.split(";");
   for (const p of parts) {
     const idx = p.indexOf("=");
     if (idx === -1) continue;
