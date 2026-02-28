@@ -679,10 +679,15 @@
 
         function formatNumber(value) {
             const v = Math.abs(value || 0);
-            if (v >= 1e9) return (value / 1e9).toFixed(2) + 'B';
-            if (v >= 1e6) return (value / 1e6).toFixed(2) + 'M';
-            if (v >= 1e3) return (value / 1e3).toFixed(2) + 'K';
-            return (value || 0).toLocaleString();
+            if (v >= 1e9) return Math.round(value / 1e9) + 'B';
+            if (v >= 1e6) return Math.round(value / 1e6) + 'M';
+            if (v >= 1e3) return Math.round(value / 1e3) + 'K';
+            return Math.round(value || 0).toLocaleString();
+        }
+
+        function formatPrice(value) {
+            if (!Number.isFinite(value)) return '-';
+            return Math.round(value).toLocaleString();
         }
 
         function formatPercent(value, digits) {
@@ -700,16 +705,21 @@
             return null;
         }
 
+        function normalizeDateKey(s) {
+            const t = String(s || '');
+            return t.split(' ')[0];
+        }
+
         function alignSeries(targetDates, sourceDates, sourceValues) {
             const map = new Map();
             if (Array.isArray(sourceDates)) {
                 sourceDates.forEach((d, idx) => {
-                    const key = String(d || '');
+                    const key = normalizeDateKey(d);
                     map.set(key, Number(sourceValues && sourceValues[idx]));
                 });
             }
             return (targetDates || []).map(d => {
-                const v = map.get(String(d || ''));
+                const v = map.get(normalizeDateKey(d));
                 return Number.isFinite(v) ? v : null;
             });
         }
@@ -734,9 +744,9 @@
             const eth = Number.isFinite(prices.eth) ? prices.eth : null;
             const doge = Number.isFinite(prices.doge) ? prices.doge : null;
             window.PORTAL_MARKET_CARDS = [
-                { symbol: 'BTC', name: 'Bitcoin', icon: '฿', theme: 'theme-btc', priceText: btc != null ? `$${btc.toLocaleString('en-US', { maximumFractionDigits: 2 })}` : '-', dominanceLabel: 'Source', dominanceText: 'CoinGecko' },
-                { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', theme: 'theme-eth', priceText: eth != null ? `$${eth.toLocaleString('en-US', { maximumFractionDigits: 2 })}` : '-', dominanceLabel: 'Source', dominanceText: 'CoinGecko' },
-                { symbol: 'DOGE', name: 'Dogecoin', icon: 'Ð', theme: 'theme-doge', priceText: doge != null ? `$${doge.toLocaleString('en-US', { maximumFractionDigits: 4 })}` : '-', dominanceLabel: 'Source', dominanceText: 'CoinGecko' },
+                { symbol: 'BTC', name: 'Bitcoin', icon: '฿', theme: 'theme-btc', priceText: btc != null ? `$${formatPrice(btc)}` : '-', dominanceLabel: 'Source', dominanceText: 'CoinGecko' },
+                { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', theme: 'theme-eth', priceText: eth != null ? `$${formatPrice(eth)}` : '-', dominanceLabel: 'Source', dominanceText: 'CoinGecko' },
+                { symbol: 'DOGE', name: 'Dogecoin', icon: 'Ð', theme: 'theme-doge', priceText: doge != null ? `$${formatPrice(doge)}` : '-', dominanceLabel: 'Source', dominanceText: 'CoinGecko' },
             ];
         }
 
@@ -799,13 +809,15 @@
                     top: 6,
                     right: 10,
                     inactiveColor: '#3a3f4b',
-                    textStyle: { color: '#787b86', fontSize: 11 }
+                    textStyle: { color: '#787b86', fontSize: 11 },
+                    itemWidth: 12,
+                    itemHeight: 3
                 },
                 grid: { left: '6%', right: '6%', bottom: '14%', top: '18%', containLabel: true },
                 xAxis: { type: 'category', data: sliced.dates, boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', hideOverlap: true } },
                 yAxis: [
                     { type: 'value', scale: true, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
-                    { type: 'value', scale: true, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } }
+                    { type: 'value', scale: true, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => formatPrice(v) } }
                 ],
                 series: [
                     { name: 'OI', type: 'line', data: sliced.series[0] || [], symbol: 'none', lineStyle: { color: '#f8cb46', width: 2 } },
@@ -831,7 +843,9 @@
                     top: 6,
                     right: 10,
                     inactiveColor: '#3a3f4b',
-                    textStyle: { color: '#787b86', fontSize: 11 }
+                    textStyle: { color: '#787b86', fontSize: 11 },
+                    itemWidth: 12,
+                    itemHeight: 3
                 },
                 grid: { left: '6%', right: '6%', bottom: '14%', top: '18%', containLabel: true },
                 xAxis: {
@@ -852,7 +866,7 @@
                 },
                 yAxis: [
                     { type: 'value', scale: true, min: 'dataMin', max: 'dataMax', splitNumber: 5, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatPercent(v, 4) } },
-                    { type: 'value', scale: true, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } }
+                    { type: 'value', scale: true, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => formatPrice(v) } }
                 ],
                 series: [
                     { name: 'Funding', type: 'line', data: sliced.series[0] || [], symbol: 'none', lineStyle: { color: '#f8cb46', width: 2 } },
@@ -885,11 +899,36 @@
             const c = getChart('chart-etf');
             if (!c) return;
             const sliced = sliceRecent(data.dates || [], [data.total || []]);
+            const detail = data.detail || {};
+            const others = data.others || [];
+            const tickers = data.tickers || [];
             const option = {
                 backgroundColor: 'transparent',
                 title: { text: `ETF Net Flow (${etfSymbol || 'BTC'})`, left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
-                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-                grid: { left: '6%', right: '6%', bottom: '14%', top: '18%', containLabel: true },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    formatter: function(params) {
+                        if (!params || !params.length) return '';
+                        const idx = params[0].dataIndex;
+                        let html = '<div style="background: rgba(21,25,36,0.95); border:1px solid #2a2e39; border-radius:6px; padding:12px 16px;">';
+                        html += '<div style="color:#787b86; font-size:12px; margin-bottom:8px; border-bottom:1px solid #2a2e39; padding-bottom:6px;">' + params[0].axisValue + '</div>';
+                        const v = params[0].value || 0;
+                        const color = v >= 0 ? '#26a69a' : '#f23645';
+                        html += '<div style="display:flex; justify-content:space-between; gap:24px;"><span style="color:#787b86;">Total Flow</span><span style="color:' + color + '; font-family:monospace;">' + formatNumber(v) + '</span></div>';
+                        tickers.forEach(function(tk) {
+                            const rv = (detail[tk] || [])[idx] || 0;
+                            const rc = rv >= 0 ? '#26a69a' : '#f23645';
+                            html += '<div style="display:flex; justify-content:space-between; gap:24px;"><span style="color:#787b86;">' + tk + '</span><span style="color:' + rc + '; font-family:monospace;">' + formatNumber(rv) + '</span></div>';
+                        });
+                        const otherVal = others[idx] || 0;
+                        const otherColor = otherVal >= 0 ? '#26a69a' : '#f23645';
+                        html += '<div style="display:flex; justify-content:space-between; gap:24px;"><span style="color:#787b86;">OTHERS</span><span style="color:' + otherColor + '; font-family:monospace;">' + formatNumber(otherVal) + '</span></div>';
+                        html += '</div>';
+                        return html;
+                    }
+                },
+                grid: { left: '10%', right: '6%', bottom: '14%', top: '18%', containLabel: true },
                 xAxis: { type: 'category', data: sliced.dates, boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', hideOverlap: true } },
                 yAxis: { type: 'value', scale: true, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
                 series: [
@@ -915,13 +954,15 @@
                     top: 6,
                     right: 10,
                     inactiveColor: '#3a3f4b',
-                    textStyle: { color: '#787b86', fontSize: 11 }
+                    textStyle: { color: '#787b86', fontSize: 11 },
+                    itemWidth: 12,
+                    itemHeight: 3
                 },
                 grid: { left: '6%', right: '6%', bottom: '14%', top: '18%', containLabel: true },
                 xAxis: { type: 'category', data: sliced.dates, boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', hideOverlap: true } },
                 yAxis: [
                     { type: 'value', scale: true, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
-                    { type: 'value', scale: true, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } }
+                    { type: 'value', scale: true, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => formatPrice(v) } }
                 ],
                 series: [
                     { name: 'Balance', type: 'line', data: sliced.series[0] || [], symbol: 'none', lineStyle: { color: '#f8cb46', width: 2 } },
@@ -947,13 +988,15 @@
                     top: 6,
                     right: 10,
                     inactiveColor: '#3a3f4b',
-                    textStyle: { color: '#787b86', fontSize: 11 }
+                    textStyle: { color: '#787b86', fontSize: 11 },
+                    itemWidth: 12,
+                    itemHeight: 3
                 },
                 grid: { left: '6%', right: '6%', bottom: '14%', top: '18%', containLabel: true },
                 xAxis: { type: 'category', data: sliced.dates, boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', hideOverlap: true } },
                 yAxis: [
                     { type: 'value', scale: true, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
-                    { type: 'value', scale: true, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } }
+                    { type: 'value', scale: true, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => formatPrice(v) } }
                 ],
                 series: [
                     {
