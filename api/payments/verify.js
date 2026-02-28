@@ -82,6 +82,13 @@ module.exports = async (req, res) => {
       res.end("Method Not Allowed");
       return;
     }
+    const sessionSecret = process.env.SESSION_SECRET;
+    if (!sessionSecret) {
+      res.statusCode = 500;
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.end(JSON.stringify({ error: "missing_env", need: ["SESSION_SECRET"] }));
+      return;
+    }
     const cookies = parseCookies(req);
     const token = cookies[SESSION_COOKIE];
     if (!token) {
@@ -90,7 +97,7 @@ module.exports = async (req, res) => {
       res.end(JSON.stringify({ error: "unauthorized" }));
       return;
     }
-    const payload = verifySessionToken(token);
+    const payload = verifySessionToken(token, sessionSecret);
     if (!payload || !payload.discord_user_id) {
       res.statusCode = 401;
       res.setHeader("Content-Type", "application/json; charset=utf-8");
