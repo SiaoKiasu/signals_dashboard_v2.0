@@ -52,7 +52,9 @@ async function getCoinbasePremium(key) {
   if (!list.length) return { premium_rate: null };
   list.sort((a, b) => (Number(a.time) || 0) - (Number(b.time) || 0));
   const latest = list[list.length - 1];
-  return { premium_rate: Number(latest.premium_rate) };
+  const raw = Number(latest.premium_rate);
+  const premiumRate = Number.isFinite(raw) ? raw / 100 : null;
+  return { premium_rate: premiumRate };
 }
 
 async function getOi(key) {
@@ -93,8 +95,9 @@ async function getFunding(key) {
         item.open ??
         0
     );
+    const val = Number.isFinite(v) ? v / 100 : 0;
     dates.push(d);
-    values.push(Number.isFinite(v) ? v : 0);
+    values.push(val);
   }
   return { dates, values };
 }
@@ -188,18 +191,29 @@ async function getFearGreed(key) {
   const payload = data && data.data ? data.data : {};
   const times = Array.isArray(payload.time_list) ? payload.time_list : [];
   const values = Array.isArray(payload.data_list) ? payload.data_list : [];
+  const prices = Array.isArray(payload.price_list) ? payload.price_list : [];
+  const dates = [];
+  const series = [];
+  const priceSeries = [];
   let latest = null;
   let latestTime = null;
   for (let i = 0; i < times.length; i += 1) {
     const t = Number(times[i] || 0);
     const v = Number(values[i]);
+    const p = Number(prices[i]);
+    const d = toDateKey(t);
+    if (d) {
+      dates.push(d);
+      series.push(Number.isFinite(v) ? v : 0);
+      priceSeries.push(Number.isFinite(p) ? p : 0);
+    }
     if (!Number.isFinite(t) || !Number.isFinite(v)) continue;
     if (latestTime == null || t > latestTime) {
       latestTime = t;
       latest = v;
     }
   }
-  return { value: latest, time: latestTime };
+  return { value: latest, time: latestTime, dates, values: series, prices: priceSeries };
 }
 
 async function getBtcDominance(key) {

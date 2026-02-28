@@ -469,6 +469,13 @@
             border-radius: 10px;
             background: #151924;
         }
+        .chart-multi {
+            width: 100%;
+            height: 80vh;
+            min-height: 520px;
+            border-radius: 10px;
+            background: #151924;
+        }
         .chart-lock-mask {
             position: absolute;
             inset: 0;
@@ -550,21 +557,7 @@
             <div class="portal-card-inner">
                 <div class="portal-card-title">
                     <div class="t1">Market Indicators</div>
-                    <div class="t2">OI / Funding / Liquidation</div>
-                </div>
-                <div class="charts-grid">
-                    <div id="chart-oi" class="chart-iframe"></div>
-                    <div id="chart-funding" class="chart-iframe"></div>
-                    <div id="chart-liquidation" class="chart-iframe"></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="portal-card">
-            <div class="portal-card-inner">
-                <div class="portal-card-title">
-                    <div class="t1">Flows & Holdings</div>
-                    <div class="t2">ETF / Exchange Balance / More</div>
+                    <div class="t2">OI / Funding / Liquidation / ETF / Balance / Fear&Greed</div>
                 </div>
                 <div style="margin:0 0 12px 0;">
                     <select id="etf-symbol-select" style="background:#151924; color:#d1d4dc; border:1px solid #2a2e39; border-radius:6px; padding:6px 8px;">
@@ -574,15 +567,11 @@
                         <option value="XRP">XRP</option>
                     </select>
                 </div>
-                <div class="charts-grid">
-                    <div id="chart-etf" class="chart-iframe"></div>
-                    <div id="chart-exbalance" class="chart-iframe"></div>
-                    <div id="chart-extra" class="chart-iframe" style="display:flex; align-items:center; justify-content:center; color:#787b86;">More charts</div>
-                </div>
+                <div id="chart-market-multi" class="chart-multi"></div>
             </div>
         </div>
 
-        <div class="portal-card" style="display:none;">
+        <div class="portal-card">
             <div class="portal-card-inner">
                 <div class="signals-topbar">
                     <div class="portal-card-title" style="margin-bottom:0;">
@@ -641,6 +630,7 @@
         let authSnapshot = null;
         let authRemainTimer = null;
         const chartInstances = {};
+        let marketPayloadCache = null;
 
         function normalizeDateKey(dateStr) {
             if (!dateStr) return '';
@@ -701,6 +691,21 @@
             });
         }
 
+        function sliceRecent(dates, seriesList) {
+            const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+            const outDates = [];
+            const outSeries = (seriesList || []).map(() => []);
+            (dates || []).forEach((d, idx) => {
+                const ts = Date.parse(String(d || ''));
+                if (!Number.isFinite(ts) || ts < cutoff) return;
+                outDates.push(d);
+                outSeries.forEach((arr, sIdx) => {
+                    arr.push(seriesList[sIdx] ? seriesList[sIdx][idx] : null);
+                });
+            });
+            return { dates: outDates, series: outSeries };
+        }
+
         function updateMarketCards(prices) {
             const btc = Number.isFinite(prices.btc) ? prices.btc : null;
             const eth = Number.isFinite(prices.eth) ? prices.eth : null;
@@ -716,10 +721,8 @@
             const oiLatest = pickLatest(payload.oi && payload.oi.values);
             const fundingLatest = pickLatest(payload.funding && payload.funding.values);
             const etfBtcLatest = pickLatest(payload.etf && payload.etf.BTC && payload.etf.BTC.total);
-            const balanceLatest = pickLatest(payload.exchangeBalance && payload.exchangeBalance.total);
             const premiumRate = payload.premium && Number.isFinite(payload.premium.premium_rate) ? payload.premium.premium_rate : null;
             const fearGreed = payload.fearGreed && Number.isFinite(payload.fearGreed.value) ? payload.fearGreed.value : null;
-            const btcDom = payload.btcDominance && Number.isFinite(payload.btcDominance.value) ? payload.btcDominance.value : null;
             let liquidationTotal = null;
             if (payload.liquidation && Array.isArray(payload.liquidation.exchanges)) {
                 const idx = payload.liquidation.exchanges.findIndex(e => String(e).toLowerCase() === 'all');
@@ -735,9 +738,7 @@
                 { key: '24h Liquidation', value: liquidationTotal != null ? formatNumber(liquidationTotal) : '-', sub: 'All exchanges' },
                 { key: 'Funding Rate', value: fundingLatest != null ? formatPercent(fundingLatest, 4) : '-', sub: 'Perp funding' },
                 { key: 'ETF Net Flow', value: etfBtcLatest != null ? formatNumber(etfBtcLatest) : '-', sub: 'BTC total' },
-                { key: 'Total Exchange Balance', value: balanceLatest != null ? formatNumber(balanceLatest) : '-', sub: 'Holdings total' },
                 { key: 'Fear & Greed', value: fearGreed != null ? String(fearGreed) : '-', sub: 'Market sentiment' },
-                { key: 'BTC Dominance', value: btcDom != null ? btcDom.toFixed(2) + '%' : '-', sub: 'Market share' },
             ];
         }
 
@@ -759,120 +760,96 @@
             return await r.json();
         }
 
-        function renderOiChart(data, priceSeries) {
-            const c = getChart('chart-oi');
+        function renderMarketMulti(payload, etfSymbol) {
+            const c = getChart('chart-market-multi');
             if (!c) return;
+            const oi = payload.oi || { dates: [], values: [] };
+            const funding = payload.funding || { dates: [], values: [] };
+            const exb = payload.exchangeBalance || { dates: [], total: [], prices: [] };
+            const etfAll = payload.etf || {};
+            const etf = etfAll[etfSymbol || 'BTC'] || { dates: [], total: [] };
+            const fearGreed = payload.fearGreed || { dates: [], values: [], prices: [] };
+
+            const oiRecent = sliceRecent(oi.dates || [], [oi.values || []]);
+            const fundingRecent = sliceRecent(funding.dates || [], [funding.values || []]);
+            const exbRecent = sliceRecent(exb.dates || [], [exb.total || [], exb.prices || []]);
+            const etfRecent = sliceRecent(etf.dates || [], [etf.total || []]);
+            const fearRecent = sliceRecent(fearGreed.dates || [], [fearGreed.values || [], fearGreed.prices || []]);
+
+            const oiPrice = alignSeries(oiRecent.dates, exbRecent.dates, exbRecent.series[1] || []);
+            const fundingPrice = alignSeries(fundingRecent.dates, exbRecent.dates, exbRecent.series[1] || []);
+            const etfPrice = alignSeries(etfRecent.dates, exbRecent.dates, exbRecent.series[1] || []);
+            const fearPrice = fearRecent.series[1] || [];
+
+            const grids = [
+                { left: '5%', top: '10%', width: '28%', height: '34%' },
+                { left: '36%', top: '10%', width: '28%', height: '34%' },
+                { left: '67%', top: '10%', width: '28%', height: '34%' },
+                { left: '5%', top: '56%', width: '28%', height: '34%' },
+                { left: '36%', top: '56%', width: '28%', height: '34%' },
+                { left: '67%', top: '56%', width: '28%', height: '34%' }
+            ];
+
             const option = {
                 backgroundColor: 'transparent',
+                title: [
+                    { text: 'OI', left: '5%', top: '4%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
+                    { text: 'Funding Rate', left: '36%', top: '4%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
+                    { text: 'Liquidation (24h)', left: '67%', top: '4%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
+                    { text: `ETF Net Flow (${etfSymbol || 'BTC'})`, left: '5%', top: '52%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
+                    { text: 'Exchange Balance', left: '36%', top: '52%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
+                    { text: 'Fear & Greed', left: '67%', top: '52%', textStyle: { color: '#d1d4dc', fontSize: 12 } }
+                ],
                 tooltip: { trigger: 'axis' },
-                grid: { left: '6%', right: '6%', bottom: '14%', top: '12%', containLabel: true },
-                xAxis: { type: 'category', data: data.dates || [], boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', hideOverlap: true } },
+                grid: grids,
+                legend: [
+                    { data: ['OI', 'Price'], left: '5%', top: '2%', textStyle: { color: '#787b86', fontSize: 11 } },
+                    { data: ['Funding', 'Price'], left: '36%', top: '2%', textStyle: { color: '#787b86', fontSize: 11 } }
+                ],
+                xAxis: [
+                    { type: 'category', gridIndex: 0, data: oiRecent.dates, boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', hideOverlap: true } },
+                    { type: 'category', gridIndex: 1, data: fundingRecent.dates, boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', hideOverlap: true } },
+                    { type: 'value', gridIndex: 2, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
+                    { type: 'category', gridIndex: 3, data: etfRecent.dates, boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', hideOverlap: true } },
+                    { type: 'category', gridIndex: 4, data: exbRecent.dates, boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', hideOverlap: true } },
+                    { type: 'category', gridIndex: 5, data: fearRecent.dates, boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', hideOverlap: true } }
+                ],
                 yAxis: [
-                    { type: 'value', scale: true, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
-                    { type: 'value', scale: true, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } }
+                    { type: 'value', gridIndex: 0, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
+                    { type: 'value', gridIndex: 0, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
+
+                    { type: 'value', gridIndex: 1, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatPercent(v, 4) } },
+                    { type: 'value', gridIndex: 1, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
+
+                    { type: 'category', gridIndex: 2, data: (payload.liquidation && payload.liquidation.exchanges) || [], inverse: true, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86' } },
+
+                    { type: 'value', gridIndex: 3, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
+                    { type: 'value', gridIndex: 3, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
+
+                    { type: 'value', gridIndex: 4, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
+                    { type: 'value', gridIndex: 4, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
+
+                    { type: 'value', gridIndex: 5, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
+                    { type: 'value', gridIndex: 5, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } }
                 ],
                 series: [
-                    { name: 'OI', type: 'line', data: data.values || [], symbol: 'none', lineStyle: { color: '#f8cb46', width: 2 } },
-                    { name: 'Price', type: 'line', data: priceSeries || [], yAxisIndex: 1, symbol: 'none', lineStyle: { color: '#2962ff', width: 1.8 } }
-                ]
-            };
-            c.setOption(option, { notMerge: true, lazyUpdate: false });
-        }
+                    { name: 'OI', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: oiRecent.series[0] || [], symbol: 'none', lineStyle: { color: '#f8cb46', width: 2 } },
+                    { name: 'Price', type: 'line', xAxisIndex: 0, yAxisIndex: 1, data: oiPrice || [], symbol: 'none', lineStyle: { color: '#2962ff', width: 1.6 } },
 
-        function renderFundingChart(data, priceSeries) {
-            const c = getChart('chart-funding');
-            if (!c) return;
-            const option = {
-                backgroundColor: 'transparent',
-                tooltip: { trigger: 'axis' },
-                grid: { left: '6%', right: '6%', bottom: '14%', top: '12%', containLabel: true },
-                xAxis: { type: 'category', data: data.dates || [], boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', hideOverlap: true } },
-                yAxis: [
-                    { type: 'value', scale: true, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => v.toFixed(4) } },
-                    { type: 'value', scale: true, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } }
-                ],
-                series: [
-                    { name: 'Funding', type: 'line', data: data.values || [], symbol: 'none', lineStyle: { color: '#f8cb46', width: 2 } },
-                    { name: 'Price', type: 'line', data: priceSeries || [], yAxisIndex: 1, symbol: 'none', lineStyle: { color: '#2962ff', width: 1.8 } }
-                ]
-            };
-            c.setOption(option, { notMerge: true, lazyUpdate: false });
-        }
+                    { name: 'Funding', type: 'line', xAxisIndex: 1, yAxisIndex: 2, data: fundingRecent.series[0] || [], symbol: 'none', lineStyle: { color: '#f8cb46', width: 2 } },
+                    { name: 'Price', type: 'line', xAxisIndex: 1, yAxisIndex: 3, data: fundingPrice || [], symbol: 'none', lineStyle: { color: '#2962ff', width: 1.6 } },
 
-        function renderLiquidationChart(data) {
-            const c = getChart('chart-liquidation');
-            if (!c) return;
-            const exchanges = data.exchanges || [];
-            const option = {
-                backgroundColor: 'transparent',
-                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-                grid: { left: '6%', right: '6%', bottom: '12%', top: '12%', containLabel: true },
-                xAxis: { type: 'value', scale: true, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
-                yAxis: { type: 'category', data: exchanges, inverse: true, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86' } },
-                series: [
-                    { name: 'Long', type: 'bar', stack: 'total', data: data.long || [], barWidth: 16, itemStyle: { color: '#26a69a' } },
-                    { name: 'Short', type: 'bar', stack: 'total', data: data.short || [], barWidth: 16, itemStyle: { color: '#f23645' } }
-                ]
-            };
-            c.setOption(option, { notMerge: true, lazyUpdate: false });
-        }
+                    { name: 'Long', type: 'bar', xAxisIndex: 2, yAxisIndex: 4, data: (payload.liquidation && payload.liquidation.long) || [], barWidth: 10, itemStyle: { color: '#26a69a' } },
+                    { name: 'Short', type: 'bar', xAxisIndex: 2, yAxisIndex: 4, data: (payload.liquidation && payload.liquidation.short) || [], barWidth: 10, itemStyle: { color: '#f23645' } },
 
-        function renderEtfChart(data) {
-            const c = getChart('chart-etf');
-            if (!c) return;
-            const dates = data.dates || [];
-            const total = data.total || [];
-            const detail = data.detail || {};
-            const others = data.others || [];
-            const tickers = data.tickers || [];
-            const option = {
-                backgroundColor: 'transparent',
-                tooltip: {
-                    trigger: 'axis',
-                    axisPointer: { type: 'shadow' },
-                    formatter: function(params) {
-                        let html = '<div style="background: rgba(21,25,36,0.95); border:1px solid #2a2e39; border-radius:6px; padding:12px 16px;">';
-                        html += '<div style="color:#787b86; font-size:12px; margin-bottom:8px; border-bottom:1px solid #2a2e39; padding-bottom:6px;">' + params[0].axisValue + '</div>';
-                        const v = params[0].value || 0;
-                        const color = v >= 0 ? '#26a69a' : '#f23645';
-                        html += '<div style="display:flex; justify-content:space-between; gap:24px;"><span style="color:#787b86;">Total Flow</span><span style="color:' + color + '; font-family:monospace;">' + formatNumber(v) + '</span></div>';
-                        const idx = params[0].dataIndex;
-                        tickers.forEach(function(tk) {
-                            const rv = (detail[tk] || [])[idx] || 0;
-                            const rc = rv >= 0 ? '#26a69a' : '#f23645';
-                            html += '<div style="display:flex; justify-content:space-between; gap:24px;"><span style="color:#787b86;">' + tk + '</span><span style="color:' + rc + '; font-family:monospace;">' + formatNumber(rv) + '</span></div>';
-                        });
-                        const otherVal = others[idx] || 0;
-                        const otherColor = otherVal >= 0 ? '#26a69a' : '#f23645';
-                        html += '<div style="display:flex; justify-content:space-between; gap:24px;"><span style="color:#787b86;">OTHERS</span><span style="color:' + otherColor + '; font-family:monospace;">' + formatNumber(otherVal) + '</span></div>';
-                        html += '</div>';
-                        return html;
-                    }
-                },
-                grid: { left: '6%', right: '6%', bottom: '14%', top: '12%', containLabel: true },
-                xAxis: { type: 'category', data: dates, boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', rotate: 45 } },
-                yAxis: { type: 'value', scale: true, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
-                series: [{ name: 'Total Flow', type: 'bar', data: total, barWidth: 1, itemStyle: { color: (p) => (p.value || 0) >= 0 ? '#26a69a' : '#f23645' } }]
-            };
-            c.setOption(option, { notMerge: true, lazyUpdate: false });
-        }
+                    { name: 'ETF Flow', type: 'bar', xAxisIndex: 3, yAxisIndex: 5, data: etfRecent.series[0] || [], barWidth: 1, itemStyle: { color: (p) => (p.value || 0) >= 0 ? '#26a69a' : '#f23645' } },
+                    { name: 'Price', type: 'line', xAxisIndex: 3, yAxisIndex: 6, data: etfPrice || [], symbol: 'none', lineStyle: { color: '#2962ff', width: 1.6 } },
 
-        function renderExchangeBalanceChart(data) {
-            const c = getChart('chart-exbalance');
-            if (!c) return;
-            const option = {
-                backgroundColor: 'transparent',
-                tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
-                legend: { data: ['Total Balance', 'Price'], top: 10, icon: 'rect', itemWidth: 20, itemHeight: 3, textStyle: { color: '#787b86', fontSize: 12 } },
-                grid: { left: '6%', right: '6%', bottom: '14%', top: '16%', containLabel: true },
-                xAxis: { type: 'category', data: data.dates || [], boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', hideOverlap: true } },
-                yAxis: [
-                    { type: 'value', scale: true, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
-                    { type: 'value', scale: true, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => v.toLocaleString() } }
-                ],
-                series: [
-                    { name: 'Total Balance', type: 'line', data: data.total || [], symbol: 'none', lineStyle: { color: '#f8cb46', width: 2 } },
-                    { name: 'Price', type: 'line', data: data.prices || [], yAxisIndex: 1, symbol: 'none', lineStyle: { color: '#2962ff', width: 2 } }
+                    { name: 'Balance', type: 'line', xAxisIndex: 4, yAxisIndex: 7, data: exbRecent.series[0] || [], symbol: 'none', lineStyle: { color: '#f8cb46', width: 2 } },
+                    { name: 'Price', type: 'line', xAxisIndex: 4, yAxisIndex: 8, data: exbRecent.series[1] || [], symbol: 'none', lineStyle: { color: '#2962ff', width: 1.6 } },
+
+                    { name: 'Fear & Greed', type: 'line', xAxisIndex: 5, yAxisIndex: 9, data: fearRecent.series[0] || [], symbol: 'none', lineStyle: { color: '#f8cb46', width: 2 } },
+                    { name: 'Price', type: 'line', xAxisIndex: 5, yAxisIndex: 10, data: fearPrice || [], symbol: 'none', lineStyle: { color: '#2962ff', width: 1.6 } }
                 ]
             };
             c.setOption(option, { notMerge: true, lazyUpdate: false });
@@ -881,15 +858,10 @@
         async function loadMarketCharts() {
             try {
                 const payload = await fetchJson('/api/market/summary');
-                const oi = payload.oi || { dates: [], values: [] };
-                const funding = payload.funding || { dates: [], values: [] };
-                const exb = payload.exchangeBalance || { dates: [], total: [], prices: [] };
-                const oiPrice = alignSeries(oi.dates || [], exb.dates || [], exb.prices || []);
-                const fundingPrice = alignSeries(funding.dates || [], exb.dates || [], exb.prices || []);
-                renderOiChart(oi, oiPrice);
-                renderFundingChart(funding, fundingPrice);
-                renderLiquidationChart(payload.liquidation || { exchanges: [], long: [], short: [] });
-                renderExchangeBalanceChart(exb);
+                marketPayloadCache = payload;
+                const etfSelect = document.getElementById('etf-symbol-select');
+                const etfSymbol = etfSelect ? etfSelect.value || 'BTC' : 'BTC';
+                renderMarketMulti(payload, etfSymbol);
                 if (payload.prices) updateMarketCards(payload.prices);
                 updateMarketMetrics(payload);
                 renderMarketSnapshot();
@@ -898,14 +870,12 @@
             }
         }
 
-        async function loadEtf(symbol) {
-            try {
-                const payload = await fetchJson('/api/market/summary');
-                const etf = payload && payload.etf ? payload.etf : {};
-                renderEtfChart(etf[symbol] || { dates: [], total: [], detail: {}, others: [], tickers: [] });
-            } catch (e) {
-                console.error('加载 ETF 图表失败', e);
+        function renderMarketBySymbol(symbol) {
+            if (marketPayloadCache) {
+                renderMarketMulti(marketPayloadCache, symbol);
+                return;
             }
+            loadMarketCharts();
         }
 
         function renderMarketSnapshot() {
@@ -1446,14 +1416,13 @@
 
         const etfSelect = document.getElementById('etf-symbol-select');
         if (etfSelect) {
-            loadEtf(etfSelect.value || 'BTC');
-            etfSelect.addEventListener('change', () => loadEtf(etfSelect.value));
+            renderMarketBySymbol(etfSelect.value || 'BTC');
+            etfSelect.addEventListener('change', () => renderMarketBySymbol(etfSelect.value));
         }
 
         setInterval(loadMarketSnapshotLive, 30 * 1000); 
         setInterval(() => {
             loadMarketCharts();
-            if (etfSelect) loadEtf(etfSelect.value || 'BTC');
         }, 5 * 60 * 1000);
 
         window.PORTAL_MARKET_CARDS = [
@@ -1468,9 +1437,7 @@
             { key: '24h Liquidation', value: '-', sub: 'All exchanges' },
             { key: 'Funding Rate', value: '-', sub: 'Perp funding' },
             { key: 'ETF Net Flow', value: '-', sub: 'BTC total' },
-            { key: 'Total Exchange Balance', value: '-', sub: 'Holdings total' },
             { key: 'Fear & Greed', value: '-', sub: 'Market sentiment' },
-            { key: 'BTC Dominance', value: '-', sub: 'Market share' },
         ];
     </script>
 </body>
