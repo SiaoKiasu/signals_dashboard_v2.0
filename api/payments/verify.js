@@ -24,6 +24,23 @@ const PRICE_IDS = {
   arbitrum: "ethereum",
 };
 
+const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+
+const ERC20_TOKENS = {
+  ethereum: {
+    USDT: { address: "0xdac17f958d2ee523a2206206994597c13d831ec7", decimals: 6 },
+    USDC: { address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", decimals: 6 },
+  },
+  bnb: {
+    USDT: { address: "0x55d398326f99059ff775485246999027b3197955", decimals: 18 },
+    USDC: { address: "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d", decimals: 18 },
+  },
+  arbitrum: {
+    USDT: { address: "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9", decimals: 6 },
+    USDC: { address: "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8", decimals: 6 },
+  },
+};
+
 let priceCache = { ts: 0, data: {} };
 
 async function rpcCall(url, method, params) {
@@ -44,6 +61,45 @@ async function rpcCall(url, method, params) {
 function hexToBigInt(hex) {
   if (!hex) return 0n;
   return BigInt(hex);
+}
+
+function normalizeAddress(addr) {
+  return String(addr || "").toLowerCase();
+}
+
+function isTransferToAddress(logs, toAddress) {
+  if (!Array.isArray(logs)) return null;
+  const target = normalizeAddress(toAddress).replace(/^0x/, "");
+  for (const log of logs) {
+    if (!log || !Array.isArray(log.topics) || log.topics.length < 3) continue;
+    if (String(log.topics[0]).toLowerCase() !== TRANSFER_TOPIC) continue;
+    const topicTo = String(log.topics[2] || "").toLowerCase().replace(/^0x/, "");
+    const to = topicTo.slice(-40);
+    if (to === target) {
+      return log.address || null;
+    }
+  }
+  return null;
+}
+
+function parseErc20Transfer(logs, toAddress, tokenMap) {
+  if (!Array.isArray(logs) || !tokenMap) return null;
+  const target = normalizeAddress(toAddress).replace(/^0x/, "");
+  for (const log of logs) {
+    if (!log || !Array.isArray(log.topics) || log.topics.length < 3) continue;
+    if (String(log.topics[0]).toLowerCase() !== TRANSFER_TOPIC) continue;
+    const tokenAddr = normalizeAddress(log.address);
+    const tokenEntry = Object.entries(tokenMap).find(([, meta]) => meta.address === tokenAddr);
+    if (!tokenEntry) continue;
+    const topicTo = String(log.topics[2] || "").toLowerCase().replace(/^0x/, "");
+    const to = topicTo.slice(-40);
+    if (to !== target) continue;
+    const raw = hexToBigInt(log.data || "0x0");
+    const [symbol, meta] = tokenEntry;
+    const amount = Number(raw) / 10 ** meta.decimals;
+    return { symbol, amount, token_address: tokenAddr };
+  }
+  return null;
 }
 
 async function getPriceUsd(chain) {
@@ -165,10 +221,74 @@ module.exports = async (req, res) => {
         res.end(JSON.stringify({ error: "tx_not_found" }));
         return;
       }
-      if (!tx.to || String(tx.to).toLowerCase() !== toAddress) {
+      const receipt = await rpcCall(RPC_URLS[network], "eth_getTransactionReceipt", [txHash]);
+      const erc20 = parseErc20Transfer(receipt && receipt.logs, toAddress, ERC20_TOKENS[network]);
+      if (!tx.to || normalizeAddress(tx.to) !== toAddress) {
+        if (erc20) {
+          const amountUsd = erc20.amount;
+          const pricing = await getPricing(db);
+          const threshold = plan === "pro" ? pricing.pro_month_usd : pricing.ultra_month_usd;
+          if (!Number.isFinite(threshold) || threshold <= 0) {
+            res.statusCode = 500;
+            res.setHeader("Content-Type", "application/json; charset=utf-8");
+            res.end(JSON.stringify({ error: "missing_pricing" }));
+            return;
+          }
+          if (amountUsd < threshold - 3) {
+            res.statusCode = 400;
+            res.setHeader("Content-Type", "application/json; charset=utf-8");
+            res.end(JSON.stringify({ error: "amount_insufficient", amount_usd: amountUsd, threshold_usd: threshold }));
+            return;
+          }
+          const minutes = Math.floor((30 * 24 * 60 * amountUsd) / threshold);
+          if (minutes <= 0) {
+            res.statusCode = 400;
+            res.setHeader("Content-Type", "application/json; charset=utf-8");
+            res.end(JSON.stringify({ error: "invalid_duration" }));
+            return;
+          }
+          const currentTier = await getTier(id);
+          const rank = { basic: 0, pro: 1, ultra: 2 };
+          const isUpgrade = (rank[plan] || 0) > (rank[currentTier] || 0);
+          const result = await applyMembershipChange(id, {
+            tier: plan,
+            minutes,
+            is_upgrade: isUpgrade,
+          });
+          await db.collection(MEMBERS_COLLECTION).updateOne(
+            { _id: id },
+            {
+              $push: {
+                payment_history: {
+                  plan,
+                  network,
+                  tx_hash: txHash,
+                  tx_from: tx.from || null,
+                  tx_to: tx.to || null,
+                  token: erc20.symbol,
+                  token_address: erc20.token_address,
+                  amount: erc20.amount,
+                  amount_usd: amountUsd,
+                  price_usd: 1,
+                  created_at: new Date().toISOString(),
+                },
+              },
+            }
+          );
+          res.statusCode = 200;
+          res.setHeader("Content-Type", "application/json; charset=utf-8");
+          res.end(JSON.stringify({ ok: true, membership: result.membership }));
+          return;
+        }
         res.statusCode = 400;
         res.setHeader("Content-Type", "application/json; charset=utf-8");
-        res.end(JSON.stringify({ error: "invalid_receiver" }));
+        res.end(
+          JSON.stringify({
+            error: "invalid_receiver",
+            expected_receiver: ADDRESSES[network],
+            actual_receiver: tx.to || null,
+          })
+        );
         return;
       }
       if (!tx.blockNumber) {
@@ -177,7 +297,6 @@ module.exports = async (req, res) => {
         res.end(JSON.stringify({ error: "tx_pending" }));
         return;
       }
-      const receipt = await rpcCall(RPC_URLS[network], "eth_getTransactionReceipt", [txHash]);
       if (!receipt || receipt.status !== "0x1") {
         res.statusCode = 400;
         res.setHeader("Content-Type", "application/json; charset=utf-8");
