@@ -14,24 +14,24 @@ const ETF_TICKERS = {
   XRP: [],
 };
 
-async function fetchBinancePrice(symbol) {
-  const url = `https://api.binance.com/api/v3/ticker/price?symbol=${encodeURIComponent(symbol)}`;
-  const r = await fetch(url);
-  if (!r.ok) {
-    const t = await r.text();
-    throw new Error(`binance_failed:${r.status}:${t}`);
-  }
-  const j = await r.json();
-  return Number(j.price);
-}
-
 async function getPrices() {
-  const [btc, eth, usdc] = await Promise.all([
-    fetchBinancePrice("BTCUSDT"),
-    fetchBinancePrice("ETHUSDT"),
-    fetchBinancePrice("USDCUSDT"),
-  ]);
-  return { btc, eth, usdc };
+  try {
+    const url =
+      "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,usd-coin&vs_currencies=usd";
+    const r = await fetch(url);
+    if (!r.ok) {
+      const t = await r.text();
+      throw new Error(`coingecko_failed:${r.status}:${t}`);
+    }
+    const j = await r.json();
+    return {
+      btc: Number(j.bitcoin && j.bitcoin.usd),
+      eth: Number(j.ethereum && j.ethereum.usd),
+      usdc: Number(j["usd-coin"] && j["usd-coin"].usd),
+    };
+  } catch {
+    return { btc: null, eth: null, usdc: null };
+  }
 }
 
 async function getCoinbasePremium(key) {
@@ -178,12 +178,14 @@ module.exports = async (req, res) => {
     const scope = String(urlObj.searchParams.get("scope") || "all");
 
     if (scope === "prices") {
-      const [prices, premium] = await Promise.all([getPrices(), getCoinbasePremium(key)]);
+      const [pricesRes, premiumRes] = await Promise.allSettled([getPrices(), getCoinbasePremium(key)]);
+      const prices = pricesRes.status === "fulfilled" ? pricesRes.value : { btc: null, eth: null, usdc: null };
+      const premium = premiumRes.status === "fulfilled" ? premiumRes.value : { premium_rate: null };
       sendJson(res, 200, { prices, premium });
       return;
     }
 
-    const [prices, premium, oi, funding, liquidation, etf, exchangeBalance] = await Promise.all([
+    const results = await Promise.allSettled([
       getPrices(),
       getCoinbasePremium(key),
       getOi(key),
@@ -192,6 +194,26 @@ module.exports = async (req, res) => {
       getEtf(key),
       getExchangeBalance(key),
     ]);
+
+    const [
+      pricesRes,
+      premiumRes,
+      oiRes,
+      fundingRes,
+      liquidationRes,
+      etfRes,
+      exchangeBalanceRes,
+    ] = results;
+
+    const prices = pricesRes.status === "fulfilled" ? pricesRes.value : { btc: null, eth: null, usdc: null };
+    const premium = premiumRes.status === "fulfilled" ? premiumRes.value : { premium_rate: null };
+    const oi = oiRes.status === "fulfilled" ? oiRes.value : { dates: [], values: [] };
+    const funding = fundingRes.status === "fulfilled" ? fundingRes.value : { dates: [], values: [] };
+    const liquidation =
+      liquidationRes.status === "fulfilled" ? liquidationRes.value : { exchanges: [], long: [], short: [] };
+    const etf = etfRes.status === "fulfilled" ? etfRes.value : {};
+    const exchangeBalance =
+      exchangeBalanceRes.status === "fulfilled" ? exchangeBalanceRes.value : { dates: [], total: [], prices: [] };
 
     sendJson(res, 200, { prices, premium, oi, funding, liquidation, etf, exchangeBalance });
   } catch (e) {
