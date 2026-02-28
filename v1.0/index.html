@@ -43,7 +43,7 @@
         
         .portal {
             display: grid;
-            grid-template-rows: auto auto;
+            grid-template-rows: auto auto auto;
             gap: 16px;
         }
 
@@ -453,6 +453,22 @@
             box-shadow: none;
             border: none;
         }
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+        @media (max-width: 980px) {
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+        .chart-iframe {
+            width: 100%;
+            height: 52vh;
+            min-height: 420px;
+            border: none;
+            border-radius: 10px;
+            background: #151924;
+        }
         .chart-lock-mask {
             position: absolute;
             inset: 0;
@@ -532,6 +548,42 @@
         
         <div class="portal-card">
             <div class="portal-card-inner">
+                <div class="portal-card-title">
+                    <div class="t1">Data Charts (Row 2)</div>
+                    <div class="t2">OI / Funding / Liquidation</div>
+                </div>
+                <div class="charts-grid">
+                    <div id="chart-oi" class="chart-iframe"></div>
+                    <div id="chart-funding" class="chart-iframe"></div>
+                    <div id="chart-liquidation" class="chart-iframe"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="portal-card">
+            <div class="portal-card-inner">
+                <div class="portal-card-title">
+                    <div class="t1">Data Charts (Row 3)</div>
+                    <div class="t2">ETF / Exchange Balance / Extra</div>
+                </div>
+                <div style="margin:0 0 12px 0;">
+                    <select id="etf-symbol-select" style="background:#151924; color:#d1d4dc; border:1px solid #2a2e39; border-radius:6px; padding:6px 8px;">
+                        <option value="BTC">BTC</option>
+                        <option value="ETH">ETH</option>
+                        <option value="SOL">SOL</option>
+                        <option value="XRP">XRP</option>
+                    </select>
+                </div>
+                <div class="charts-grid">
+                    <div id="chart-etf" class="chart-iframe"></div>
+                    <div id="chart-exbalance" class="chart-iframe"></div>
+                    <div id="chart-extra" class="chart-iframe" style="display:flex; align-items:center; justify-content:center; color:#787b86;">More charts</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="portal-card" style="display:none;">
+            <div class="portal-card-inner">
                 <div class="signals-topbar">
                     <div class="portal-card-title" style="margin-bottom:0;">
                         <div class="t1">Signals</div>
@@ -588,6 +640,7 @@
         ]);
         let authSnapshot = null;
         let authRemainTimer = null;
+        const chartInstances = {};
 
         function normalizeDateKey(dateStr) {
             if (!dateStr) return '';
@@ -610,6 +663,165 @@
         
 
         const chart = echarts.init(document.getElementById('chart-container'));
+
+        function formatNumber(value) {
+            const v = Math.abs(value || 0);
+            if (v >= 1e9) return (value / 1e9).toFixed(2) + 'B';
+            if (v >= 1e6) return (value / 1e6).toFixed(2) + 'M';
+            if (v >= 1e3) return (value / 1e3).toFixed(2) + 'K';
+            return (value || 0).toLocaleString();
+        }
+
+        function getChart(id) {
+            if (!chartInstances[id]) {
+                const el = document.getElementById(id);
+                if (!el) return null;
+                chartInstances[id] = echarts.init(el);
+            }
+            return chartInstances[id];
+        }
+
+        async function fetchJson(url) {
+            const r = await fetch(url, { credentials: 'include' });
+            if (!r.ok) {
+                const t = await r.text();
+                throw new Error(`API_${r.status}: ${t}`);
+            }
+            return await r.json();
+        }
+
+        function renderOiChart(data) {
+            const c = getChart('chart-oi');
+            if (!c) return;
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: { trigger: 'axis' },
+                grid: { left: '3%', right: '4%', bottom: '10%', top: '10%', containLabel: true },
+                xAxis: { type: 'category', data: data.dates || [], boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', rotate: 45 } },
+                yAxis: { type: 'value', scale: true, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
+                series: [{ name: 'OI', type: 'line', data: data.values || [], symbol: 'none', lineStyle: { color: '#2962ff', width: 2 }, areaStyle: { color: 'rgba(41, 98, 255, 0.2)' } }]
+            };
+            c.setOption(option, { notMerge: true, lazyUpdate: false });
+        }
+
+        function renderFundingChart(data) {
+            const c = getChart('chart-funding');
+            if (!c) return;
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: { trigger: 'axis' },
+                grid: { left: '3%', right: '4%', bottom: '10%', top: '10%', containLabel: true },
+                xAxis: { type: 'category', data: data.dates || [], boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', rotate: 45 } },
+                yAxis: { type: 'value', scale: true, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => v.toFixed(4) } },
+                series: [{ name: 'Funding', type: 'line', data: data.values || [], symbol: 'none', lineStyle: { color: '#f8cb46', width: 2 } }]
+            };
+            c.setOption(option, { notMerge: true, lazyUpdate: false });
+        }
+
+        function renderLiquidationChart(data) {
+            const c = getChart('chart-liquidation');
+            if (!c) return;
+            const exchanges = data.exchanges || [];
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                grid: { left: '3%', right: '4%', bottom: '10%', top: '10%', containLabel: true },
+                xAxis: { type: 'value', scale: true, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
+                yAxis: { type: 'category', data: exchanges, inverse: true, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86' } },
+                series: [
+                    { name: 'Long', type: 'bar', stack: 'total', data: data.long || [], barWidth: 16, itemStyle: { color: '#26a69a' } },
+                    { name: 'Short', type: 'bar', stack: 'total', data: data.short || [], barWidth: 16, itemStyle: { color: '#f23645' } }
+                ]
+            };
+            c.setOption(option, { notMerge: true, lazyUpdate: false });
+        }
+
+        function renderEtfChart(data) {
+            const c = getChart('chart-etf');
+            if (!c) return;
+            const dates = data.dates || [];
+            const total = data.total || [];
+            const detail = data.detail || {};
+            const others = data.others || [];
+            const tickers = data.tickers || [];
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    formatter: function(params) {
+                        let html = '<div style="background: rgba(21,25,36,0.95); border:1px solid #2a2e39; border-radius:6px; padding:12px 16px;">';
+                        html += '<div style="color:#787b86; font-size:12px; margin-bottom:8px; border-bottom:1px solid #2a2e39; padding-bottom:6px;">' + params[0].axisValue + '</div>';
+                        const v = params[0].value || 0;
+                        const color = v >= 0 ? '#26a69a' : '#f23645';
+                        html += '<div style="display:flex; justify-content:space-between; gap:24px;"><span style="color:#787b86;">Total Flow</span><span style="color:' + color + '; font-family:monospace;">' + formatNumber(v) + '</span></div>';
+                        const idx = params[0].dataIndex;
+                        tickers.forEach(function(tk) {
+                            const rv = (detail[tk] || [])[idx] || 0;
+                            const rc = rv >= 0 ? '#26a69a' : '#f23645';
+                            html += '<div style="display:flex; justify-content:space-between; gap:24px;"><span style="color:#787b86;">' + tk + '</span><span style="color:' + rc + '; font-family:monospace;">' + formatNumber(rv) + '</span></div>';
+                        });
+                        const otherVal = others[idx] || 0;
+                        const otherColor = otherVal >= 0 ? '#26a69a' : '#f23645';
+                        html += '<div style="display:flex; justify-content:space-between; gap:24px;"><span style="color:#787b86;">OTHERS</span><span style="color:' + otherColor + '; font-family:monospace;">' + formatNumber(otherVal) + '</span></div>';
+                        html += '</div>';
+                        return html;
+                    }
+                },
+                grid: { left: '3%', right: '4%', bottom: '10%', top: '10%', containLabel: true },
+                xAxis: { type: 'category', data: dates, boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', rotate: 45 } },
+                yAxis: { type: 'value', scale: true, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
+                series: [{ name: 'Total Flow', type: 'bar', data: total, barWidth: 2, itemStyle: { color: (p) => (p.value || 0) >= 0 ? '#26a69a' : '#f23645' } }]
+            };
+            c.setOption(option, { notMerge: true, lazyUpdate: false });
+        }
+
+        function renderExchangeBalanceChart(data) {
+            const c = getChart('chart-exbalance');
+            if (!c) return;
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+                legend: { data: ['Total Balance', 'Price'], top: 10, icon: 'rect', itemWidth: 10, itemHeight: 10, textStyle: { color: '#787b86', fontSize: 12 } },
+                grid: { left: '3%', right: '4%', bottom: '10%', top: '15%', containLabel: true },
+                xAxis: { type: 'category', data: data.dates || [], boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', rotate: 45 } },
+                yAxis: [
+                    { type: 'value', scale: true, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
+                    { type: 'value', scale: true, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => v.toLocaleString() } }
+                ],
+                series: [
+                    { name: 'Total Balance', type: 'line', data: data.total || [], symbol: 'none', lineStyle: { color: '#f8cb46', width: 2 } },
+                    { name: 'Price', type: 'line', data: data.prices || [], yAxisIndex: 1, symbol: 'none', lineStyle: { color: '#2962ff', width: 2 } }
+                ]
+            };
+            c.setOption(option, { notMerge: true, lazyUpdate: false });
+        }
+
+        async function loadMarketCharts() {
+            try {
+                const [oi, funding, liquidation, exchangeBalance] = await Promise.all([
+                    fetchJson('/api/market/oi'),
+                    fetchJson('/api/market/funding'),
+                    fetchJson('/api/market/liquidation'),
+                    fetchJson('/api/market/exchange-balance')
+                ]);
+                renderOiChart(oi);
+                renderFundingChart(funding);
+                renderLiquidationChart(liquidation);
+                renderExchangeBalanceChart(exchangeBalance);
+            } catch (e) {
+                console.error('加载行情图表失败', e);
+            }
+        }
+
+        async function loadEtf(symbol) {
+            try {
+                const data = await fetchJson(`/api/market/etf?symbol=${encodeURIComponent(symbol)}`);
+                renderEtfChart(data);
+            } catch (e) {
+                console.error('加载 ETF 图表失败', e);
+            }
+        }
 
         function renderMarketSnapshot() {
             const cardsEl = document.getElementById('market-cards');
@@ -650,6 +862,37 @@
                     ${s ? `<div class="s">${s}</div>` : ``}
                 </div>`;
             }).join('');
+        }
+
+        async function loadMarketSnapshotLive() {
+            try {
+                const [prices, premium] = await Promise.all([
+                    fetchJson('/api/market/prices'),
+                    fetchJson('/api/market/coinbase-premium')
+                ]);
+                const btc = prices && Number.isFinite(prices.btc) ? prices.btc : null;
+                const eth = prices && Number.isFinite(prices.eth) ? prices.eth : null;
+                const usdc = prices && Number.isFinite(prices.usdc) ? prices.usdc : null;
+                const premiumRate = premium && Number.isFinite(premium.premium_rate) ? premium.premium_rate : null;
+
+                window.PORTAL_MARKET_CARDS = [
+                    { symbol: 'BTC', name: 'Bitcoin', icon: '฿', theme: 'theme-btc', priceText: btc != null ? `$${btc.toLocaleString('en-US', { maximumFractionDigits: 2 })}` : '-', dominanceLabel: 'Source', dominanceText: 'Binance' },
+                    { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', theme: 'theme-eth', priceText: eth != null ? `$${eth.toLocaleString('en-US', { maximumFractionDigits: 2 })}` : '-', dominanceLabel: 'Source', dominanceText: 'Binance' },
+                    { symbol: 'USDC', name: 'USDC', icon: '$', theme: 'theme-usdc', priceText: usdc != null ? `$${usdc.toFixed(4)}` : '-', dominanceLabel: 'Source', dominanceText: 'Binance' },
+                ];
+
+                window.PORTAL_MARKET_METRICS = [
+                    { key: 'BTC', value: btc != null ? `$${btc.toLocaleString('en-US', { maximumFractionDigits: 2 })}` : '-', sub: 'Binance BTCUSDT' },
+                    { key: 'ETH', value: eth != null ? `$${eth.toLocaleString('en-US', { maximumFractionDigits: 2 })}` : '-', sub: 'Binance ETHUSDT' },
+                    { key: 'USDC', value: usdc != null ? `$${usdc.toFixed(4)}` : '-', sub: 'Binance USDCUSDT' },
+                    { key: 'Coinbase Premium', value: premiumRate != null ? `${(premiumRate * 100).toFixed(4)}%` : '-', sub: 'Latest premium_rate' },
+                ];
+
+                renderMarketSnapshot();
+                loadMarketSnapshotLive();
+            } catch (e) {
+                console.error('加载价格行情失败', e);
+            }
         }
 
         function _tooltipEl() {
@@ -1128,8 +1371,25 @@
             }
         }
 
-        window.addEventListener('resize', () => chart.resize());
+        window.addEventListener('resize', () => {
+            chart.resize();
+            Object.values(chartInstances).forEach(c => c && c.resize());
+        });
         loadData();
+        loadMarketCharts();
+        loadMarketSnapshotLive();
+
+        const etfSelect = document.getElementById('etf-symbol-select');
+        if (etfSelect) {
+            loadEtf(etfSelect.value || 'BTC');
+            etfSelect.addEventListener('change', () => loadEtf(etfSelect.value));
+        }
+
+        setInterval(loadMarketSnapshotLive, 30 * 1000); 
+        setInterval(() => {
+            loadMarketCharts();
+            if (etfSelect) loadEtf(etfSelect.value || 'BTC');
+        }, 5 * 60 * 1000);
 
         window.PORTAL_MARKET_CARDS = [
             { symbol: 'BTC', name: 'Bitcoin', icon: '฿', theme: 'theme-btc', priceText: '$68,192', dominanceLabel: 'Dominance', dominanceText: '58.64%' },

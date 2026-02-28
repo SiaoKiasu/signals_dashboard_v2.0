@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Liquidation by Exchange</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#121826; color:#d1d4dc; font-family:-apple-system,BlinkMacSystemFont,"Trebuchet MS",Roboto,Ubuntu,sans-serif; padding:24px; }
+    .header { margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid #2a2e39; }
+    h1 { color:#fff; font-size:24px; font-weight:600; margin-bottom:8px; }
+    .subtitle { color:#787b86; font-size:14px; }
+    #chart-container { width:100%; height:70vh; min-height:520px; background:#151924; border-radius:12px; padding:16px; box-shadow:0 14px 34px rgba(0,0,0,0.42); }
+    .info { margin-top:16px; padding:12px; background:#151924; border-radius:8px; border:1px solid #2a2e39; font-size:12px; color:#787b86; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Liquidation by Exchange</h1>
+    <div class="subtitle">数据来源: Coinglass API | 更新于: 2026-02-28 15:25:38 | Range: 1d</div>
+  </div>
+  <div id="chart-container"></div>
+  <div class="info">
+    <strong>数据点数量:</strong> 6 条 |
+    <strong>最大总清算:</strong> 501,981,385
+  </div>
+  <script>
+    const chart = echarts.init(document.getElementById('chart-container'));
+    const exchanges = ["All", "Bybit", "Binance", "Hyperliquid", "Bitget", "OKX"];
+    const longVals = [440106694.83621037, 100582642.7498078, 80838568.03905386, 73655350.587247, 59132306.76309327, 38661219.72745];
+    const shortVals = [61874690.47126073, 11292223.5721031, 22187290.81436738, 5345192.075221, 5849705.74331292, 7333669.00816];
+    function formatNumber(value) {
+      const v = Math.abs(value || 0);
+      if (v >= 1e9) return (value / 1e9).toFixed(2) + 'B';
+      if (v >= 1e6) return (value / 1e6).toFixed(2) + 'M';
+      if (v >= 1e3) return (value / 1e3).toFixed(2) + 'K';
+      return (value || 0).toLocaleString();
+    }
+    const option = {
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        formatter: function(params) {
+          const name = params[0].axisValue;
+          const longItem = params.find(p => p.seriesName === 'Long') || { value: 0 };
+          const shortItem = params.find(p => p.seriesName === 'Short') || { value: 0 };
+          const longV = longItem.value || 0;
+          const shortV = shortItem.value || 0;
+          const total = longV + shortV;
+          return '<div style="background: rgba(21,25,36,0.95); border:1px solid #2a2e39; border-radius:6px; padding:12px 16px;">' +
+                 '<div style="color:#787b86; font-size:12px; margin-bottom:8px; border-bottom:1px solid #2a2e39; padding-bottom:6px;">' + name + '</div>' +
+                 '<div style="display:flex; justify-content:space-between; gap:24px;"><span style="color:#26a69a;">Long</span><span style="color:#fff;">' + formatNumber(longV) + '</span></div>' +
+                 '<div style="display:flex; justify-content:space-between; gap:24px;"><span style="color:#f23645;">Short</span><span style="color:#fff;">' + formatNumber(shortV) + '</span></div>' +
+                 '<div style="display:flex; justify-content:space-between; gap:24px;"><span style="color:#787b86;">Total</span><span style="color:#fff;">' + formatNumber(total) + '</span></div>' +
+                 '</div>';
+        }
+      },
+      legend: { data:['Long','Short'], textStyle:{ color:'#787b86', fontSize:12 }, top:10, selectedMode:true },
+      grid: { left:'3%', right:'4%', bottom:'8%', top:'15%', containLabel:true },
+      xAxis: { type:'value', scale:true, axisLine:{ show:false }, axisTick:{ show:false }, splitLine:{ lineStyle:{ color:'#2a2e39', type:'dashed' } },
+        axisLabel:{ color:'#787b86', formatter:function(value){ if(value>=1e9) return (value/1e9).toFixed(2)+'B'; if(value>=1e6) return (value/1e6).toFixed(2)+'M'; if(value>=1e3) return (value/1e3).toFixed(2)+'K'; return value.toLocaleString(); } }
+      },
+      yAxis: { type:'category', data:exchanges, inverse:true, axisLine:{ show:false }, axisTick:{ show:false }, axisLabel:{ color:'#787b86' } },
+      series: [
+        { name:'Long', type:'bar', stack:'total', data:longVals, barWidth:18, barMinHeight:2, itemStyle:{ color:'#26a69a', opacity:0.9 }, emphasis:{ focus:'series' } },
+        { name:'Short', type:'bar', stack:'total', data:shortVals, barWidth:18, barMinHeight:2, itemStyle:{ color:'#f23645', opacity:0.9 }, emphasis:{ focus:'series' } }
+      ]
+    };
+    chart.setOption(option);
+    window.addEventListener('resize', function(){ chart.resize(); });
+  </script>
+</body>
+</html>
