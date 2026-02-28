@@ -607,6 +607,18 @@
                 <div id="chart-container"></div>
             </div>
         </div>
+
+        <div class="portal-card">
+            <div class="portal-card-inner">
+                <div class="portal-card-title">
+                    <div class="t1">Hyperliquid Whales Monitor</div>
+                    <div class="t2">Coming Soon</div>
+                </div>
+                <div class="chart-iframe" style="display:flex; align-items:center; justify-content:center; color:#787b86;">
+                    Coming Soon
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="category-tooltip" class="category-tooltip"></div>
@@ -746,7 +758,7 @@
             window.PORTAL_MARKET_CARDS = [
                 { symbol: 'BTC', name: 'Bitcoin', icon: '฿', theme: 'theme-btc', priceText: btc != null ? `$${formatPrice(btc)}` : '-', dominanceLabel: 'Source', dominanceText: 'CoinGecko' },
                 { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', theme: 'theme-eth', priceText: eth != null ? `$${formatPrice(eth)}` : '-', dominanceLabel: 'Source', dominanceText: 'CoinGecko' },
-                { symbol: 'DOGE', name: 'Dogecoin', icon: 'Ð', theme: 'theme-doge', priceText: doge != null ? `$${formatPrice(doge)}` : '-', dominanceLabel: 'Source', dominanceText: 'CoinGecko' },
+                { symbol: 'DOGE', name: 'Dogecoin', icon: 'Ð', theme: 'theme-doge', priceText: doge != null ? `$${Number(doge).toFixed(4)}` : '-', dominanceLabel: 'Source', dominanceText: 'CoinGecko' },
             ];
         }
 
