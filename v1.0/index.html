@@ -484,6 +484,106 @@
             padding: 4px 6px;
             font-size: 12px;
         }
+        .upgrade-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(7, 10, 16, 0.72);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        .upgrade-card {
+            width: min(560px, 92vw);
+            background: #151924;
+            border: 1px solid #2a2e39;
+            border-radius: 14px;
+            padding: 20px;
+            color: #d1d4dc;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.45);
+        }
+        .upgrade-title {
+            font-weight: 700;
+            font-size: 16px;
+            margin-bottom: 12px;
+        }
+        .upgrade-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .upgrade-row label {
+            min-width: 90px;
+            color: #787b86;
+            font-size: 12px;
+        }
+        .upgrade-row select, .upgrade-row input {
+            flex: 1;
+            background: #0f141f;
+            border: 1px solid #2a2e39;
+            color: #d1d4dc;
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 12px;
+        }
+        .upgrade-address {
+            font-family: monospace;
+            font-size: 12px;
+            background: #0f141f;
+            border: 1px dashed #2a2e39;
+            border-radius: 8px;
+            padding: 8px 10px;
+            word-break: break-all;
+        }
+        .upgrade-recommend {
+            color: #f8cb46;
+            font-size: 11px;
+            margin-left: 6px;
+        }
+        .upgrade-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+        }
+        .upgrade-btn {
+            background: rgba(41,98,255,0.18);
+            border: 1px solid rgba(41,98,255,0.5);
+            color: #cfe0ff;
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .upgrade-btn.secondary {
+            background: transparent;
+            border: 1px solid #2a2e39;
+            color: #d1d4dc;
+        }
+        .upgrade-hint {
+            font-size: 12px;
+            color: #787b86;
+            line-height: 1.6;
+        }
+        .upgrade-status {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #9fb3ff;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .spinner {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid rgba(159,179,255,0.25);
+            border-top-color: #9fb3ff;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
         .chart-multi {
             width: 100%;
             height: 80vh;
@@ -622,6 +722,54 @@
     </div>
 
     <div id="category-tooltip" class="category-tooltip"></div>
+
+    <div id="upgrade-modal" class="upgrade-modal">
+        <div class="upgrade-card">
+            <div class="upgrade-title">Upgrade Plan</div>
+            <div class="upgrade-row">
+                <label>Plan</label>
+                <select id="upgrade-plan">
+                    <option value="pro">Pro</option>
+                    <option value="ultra">Ultra</option>
+                </select>
+            </div>
+            <div class="upgrade-row">
+                <label>Price</label>
+                <div id="upgrade-price" style="font-size:12px; color:#d1d4dc;">-</div>
+            </div>
+            <div class="upgrade-row">
+                <label>Network</label>
+                <select id="upgrade-network">
+                    <option value="ethereum">Ethereum</option>
+                    <option value="bnb">BNB</option>
+                    <option value="arbitrum">Arbitrum</option>
+                    <option value="solana">Solana</option>
+                </select>
+            </div>
+            <div class="upgrade-row" style="align-items:flex-start;">
+                <label>Address</label>
+                <div style="flex:1;">
+                    <div id="upgrade-address" class="upgrade-address">-</div>
+                    <div id="upgrade-recommend" class="upgrade-recommend"></div>
+                </div>
+            </div>
+            <div class="upgrade-row">
+                <label>Tx Hash</label>
+                <input id="upgrade-hash" placeholder="Please paste transaction hash" />
+            </div>
+            <div class="upgrade-hint">
+                请先完成转账，然后复制交易 Hash 在这里提交确认。Solana 暂不支持，请不要充值。
+            </div>
+            <div class="upgrade-actions">
+                <button id="upgrade-submit" class="upgrade-btn">Submit</button>
+                <button id="upgrade-close" class="upgrade-btn secondary">Close</button>
+            </div>
+            <div id="upgrade-status" class="upgrade-status" style="display:none;">
+                <div class="spinner"></div>
+                <div>处理中，请等待确认...</div>
+            </div>
+        </div>
+    </div>
 
     <script>
 
@@ -1553,6 +1701,100 @@
             }
         }
 
+        const UPGRADE_ADDRESSES = {
+            ethereum: '0x70FBd71c755aE9355f76ff88FF5b74B2a51889D7',
+            bnb: '0x70FBd71c755aE9355f76ff88FF5b74B2a51889D7',
+            solana: '8SWpuC45pvVmGGudGcMmdHGtyPqcPJZytQ5fH6tWVhvH',
+            arbitrum: '0x70FBd71c755aE9355f76ff88FF5b74B2a51889D7',
+        };
+        async function fetchPricing() {
+            try {
+                const r = await fetch('/api/payments/config', { credentials: 'include' });
+                if (!r.ok) return null;
+                return await r.json();
+            } catch {
+                return null;
+            }
+        }
+        async function openUpgradeModal() {
+            const modal = document.getElementById('upgrade-modal');
+            if (!modal) return;
+            modal.style.display = 'flex';
+            const addressEl = document.getElementById('upgrade-address');
+            const recommendEl = document.getElementById('upgrade-recommend');
+            const netEl = document.getElementById('upgrade-network');
+            const planEl = document.getElementById('upgrade-plan');
+            const priceEl = document.getElementById('upgrade-price');
+            const statusEl = document.getElementById('upgrade-status');
+            const hashEl = document.getElementById('upgrade-hash');
+            const config = await fetchPricing();
+            const renderPrice = () => {
+                if (!priceEl) return;
+                const plan = planEl ? planEl.value : 'pro';
+                const pricing = config && config.pricing ? config.pricing : {};
+                const p = plan === 'ultra' ? pricing.ultra_month_usd : pricing.pro_month_usd;
+                priceEl.textContent = Number.isFinite(p) ? `$${Math.round(p)} / 30 days` : 'Contact support';
+            };
+            const renderAddress = () => {
+                const chain = netEl.value;
+                const addr = (config && config.addresses && config.addresses[chain]) || UPGRADE_ADDRESSES[chain] || '-';
+                addressEl.textContent = addr;
+                recommendEl.textContent = chain === 'ethereum' ? 'Recommended' : '';
+            };
+            if (netEl) {
+                netEl.onchange = renderAddress;
+            }
+            if (planEl) {
+                planEl.onchange = renderPrice;
+            }
+            renderPrice();
+            renderAddress();
+            if (statusEl) statusEl.style.display = 'none';
+            if (hashEl) hashEl.value = '';
+        }
+        function closeUpgradeModal() {
+            const modal = document.getElementById('upgrade-modal');
+            if (modal) modal.style.display = 'none';
+        }
+        async function submitUpgrade() {
+            const planEl = document.getElementById('upgrade-plan');
+            const netEl = document.getElementById('upgrade-network');
+            const hashEl = document.getElementById('upgrade-hash');
+            const statusEl = document.getElementById('upgrade-status');
+            if (!planEl || !netEl || !hashEl || !statusEl) return;
+            const chain = netEl.value;
+            if (chain === 'solana') {
+                alert('Solana 暂不支持，请不要充值');
+                return;
+            }
+            const txHash = String(hashEl.value || '').trim();
+            if (!txHash) {
+                alert('请填写交易 Hash');
+                return;
+            }
+            statusEl.style.display = 'flex';
+            try {
+                const r = await fetch('/api/payments/verify', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ plan: planEl.value, network: chain, tx_hash: txHash }),
+                });
+                const j = await r.json();
+                if (!r.ok || !j.ok) {
+                    alert(j && j.error ? j.error : '验证失败');
+                    return;
+                }
+                alert('充值验证成功，会员已更新');
+                closeUpgradeModal();
+                renderAuth();
+            } catch (e) {
+                alert('验证失败，请稍后再试');
+            } finally {
+                statusEl.style.display = 'none';
+            }
+        }
+
         async function renderAuth() {
             const el = document.getElementById('auth-box');
             if (!el) return;
@@ -1586,7 +1828,7 @@
                         </div>
                         <button id="logout-btn" style="background:transparent; border:1px solid #2a2e39; color:#d1d4dc; padding:6px 10px; border-radius:10px; cursor:pointer;">Logout</button>
                         <div id="auth-menu-panel" style="position:absolute; right:8px; top:36px; min-width:180px; background:rgba(21,25,36,0.96); border:1px solid #2a2e39; border-radius:10px; padding:10px 12px; display:none; z-index:20;">
-                            <div style="color:#9fb3ff; font-size:12px; margin-bottom:6px;">Tier: ${tier}</div>
+                            <div style="color:#9fb3ff; font-size:12px; margin-bottom:6px;">Tier: ${tier} <button id="upgrade-open" style="margin-left:6px; background:transparent; border:1px solid #2a2e39; color:#d1d4dc; padding:3px 6px; border-radius:8px; cursor:pointer; font-size:11px;">Upgrade Plan</button></div>
                             <div style="color:#f8cb46; font-size:12px;">Remaining: ${remain}</div>
                         </div>
                     </div>
@@ -1601,6 +1843,13 @@
                     toggle.onclick = (e) => {
                         e.stopPropagation();
                         panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+                    };
+                }
+                const upgradeOpen = document.getElementById('upgrade-open');
+                if (upgradeOpen) {
+                    upgradeOpen.onclick = (e) => {
+                        e.stopPropagation();
+                        openUpgradeModal();
                     };
                 }
             }
@@ -1623,6 +1872,23 @@
                 authSnapshot = null;
                 el.innerHTML = '';
             }
+        }
+
+        const upgradeCloseBtn = document.getElementById('upgrade-close');
+        if (upgradeCloseBtn) {
+            upgradeCloseBtn.onclick = () => {
+                closeUpgradeModal();
+            };
+        }
+        const upgradeSubmitBtn = document.getElementById('upgrade-submit');
+        if (upgradeSubmitBtn) {
+            upgradeSubmitBtn.onclick = () => {
+                const submit = document.getElementById('upgrade-submit');
+                if (submit) submit.disabled = true;
+                submitUpgrade().finally(() => {
+                    if (submit) submit.disabled = false;
+                });
+            };
         }
 
         window.addEventListener('resize', () => {
