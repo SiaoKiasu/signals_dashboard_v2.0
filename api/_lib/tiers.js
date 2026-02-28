@@ -88,6 +88,14 @@ async function setTier(discord_user_id, tier) {
     {
       $set: setObj,
       $setOnInsert: { created_at: nowIso, first_opened_at: nowIso },
+      $push: {
+        membership_history: {
+          action: "admin_set",
+          tier,
+          created_at: nowIso,
+          source: "admin_set_tier",
+        },
+      },
     },
     { upsert: true }
   );
@@ -130,6 +138,7 @@ async function applyMembershipChange(discord_user_id, input) {
   const newExpMs = baseMs + dur.ms;
   const expiresAt = new Date(newExpMs).toISOString();
 
+  const action = isUpgrade ? "upgrade" : (Number.isFinite(existingExpMs) && existingExpMs > now ? "renew" : "first");
   const update = {
     discord_user_id: id,
     tier,
@@ -143,12 +152,33 @@ async function applyMembershipChange(discord_user_id, input) {
       minutes: dur.minutes,
       total_minutes: Math.floor(dur.ms / 60000),
     },
-    last_operation: isUpgrade ? "upgrade" : "recharge",
+    last_operation: action,
   };
 
   await db.collection(MEMBERS_COLLECTION).updateOne(
     { discord_user_id: id },
-    { $set: update, $setOnInsert: { created_at: nowIso } },
+    {
+      $set: update,
+      $setOnInsert: { created_at: nowIso },
+      $push: {
+        membership_history: {
+          action,
+          tier,
+          previous_tier: existing && existing.tier ? existing.tier : "basic",
+          previous_expires_at: existing && existing.expires_at ? existing.expires_at : null,
+          new_expires_at: expiresAt,
+          duration: {
+            days: dur.days,
+            hours: dur.hours,
+            minutes: dur.minutes,
+            total_minutes: Math.floor(dur.ms / 60000),
+          },
+          is_upgrade: isUpgrade,
+          created_at: nowIso,
+          source: "membership_change",
+        },
+      },
+    },
     { upsert: true }
   );
 
