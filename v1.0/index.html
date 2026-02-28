@@ -1562,7 +1562,7 @@
             }
             function formatRemain(expiresAt) {
                 const ts = Date.parse(String(expiresAt || ''));
-                if (!Number.isFinite(ts)) return '未开通';
+                if (!Number.isFinite(ts)) return '-';
                 const diff = ts - Date.now();
                 if (diff <= 0) return '已到期';
                 const totalMin = Math.floor(diff / 60000);
@@ -1579,15 +1579,30 @@
                     : null;
                 const remain = formatRemain(expiresAt);
                 el.innerHTML = `
-                    <div style="color:#d1d4dc; font-size:12px;">${authSnapshot.discord_user_id}</div>
-                    <div style="color:#9fb3ff; font-size:12px;"> ${tier}</div>
-                    <div style="color:#f8cb46; font-size:12px;">剩余: ${remain}</div>
-                    <button id="logout-btn" style="background:transparent; border:1px solid #2a2e39; color:#d1d4dc; padding:6px 10px; border-radius:10px; cursor:pointer;">Logout</button>
+                    <div style="display:flex; align-items:center; gap:10px; background:rgba(21,25,36,0.9); border:1px solid #2a2e39; padding:6px 8px; border-radius:10px; position:relative;">
+                        <div id="auth-menu-toggle" style="display:flex; align-items:center; gap:6px; cursor:pointer; color:#d1d4dc; font-size:12px;">
+                            <span>${authSnapshot.discord_user_id}</span>
+                            <span style="font-size:10px; color:#787b86;">▼</span>
+                        </div>
+                        <button id="logout-btn" style="background:transparent; border:1px solid #2a2e39; color:#d1d4dc; padding:6px 10px; border-radius:10px; cursor:pointer;">Logout</button>
+                        <div id="auth-menu-panel" style="position:absolute; right:8px; top:36px; min-width:180px; background:rgba(21,25,36,0.96); border:1px solid #2a2e39; border-radius:10px; padding:10px 12px; display:none; z-index:20;">
+                            <div style="color:#9fb3ff; font-size:12px; margin-bottom:6px;">Tier: ${tier}</div>
+                            <div style="color:#f8cb46; font-size:12px;">Remaining: ${remain}</div>
+                        </div>
+                    </div>
                 `;
                 document.getElementById('logout-btn').onclick = async () => {
                     await fetch('/api/logout', { method: 'POST', credentials: 'include' });
                     location.reload();
                 };
+                const toggle = document.getElementById('auth-menu-toggle');
+                const panel = document.getElementById('auth-menu-panel');
+                if (toggle && panel) {
+                    toggle.onclick = (e) => {
+                        e.stopPropagation();
+                        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+                    };
+                }
             }
             try {
                 const r = await fetch('/api/me', { credentials: 'include' });
