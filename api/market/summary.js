@@ -14,6 +14,9 @@ const ETF_TICKERS = {
   XRP: [],
 };
 
+let cachedPrices = null;
+let cachedPricesAt = 0;
+
 async function getPrices() {
   try {
     const url =
@@ -24,12 +27,20 @@ async function getPrices() {
       throw new Error(`coingecko_failed:${r.status}:${t}`);
     }
     const j = await r.json();
-    return {
+    const out = {
       btc: Number(j.bitcoin && j.bitcoin.usd),
       eth: Number(j.ethereum && j.ethereum.usd),
       usdc: Number(j["usd-coin"] && j["usd-coin"].usd),
     };
+    if (Number.isFinite(out.btc) || Number.isFinite(out.eth) || Number.isFinite(out.usdc)) {
+      cachedPrices = out;
+      cachedPricesAt = Date.now();
+    }
+    return out;
   } catch {
+    if (cachedPrices && Date.now() - cachedPricesAt < 2 * 60 * 1000) {
+      return cachedPrices;
+    }
     return { btc: null, eth: null, usdc: null };
   }
 }
