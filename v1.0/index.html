@@ -939,12 +939,12 @@
                 metric_funding: '资金费率',
                 metric_etf: 'ETF 净流入',
                 metric_fear: '恐慌指数',
-                metric_open_interest_sub: '持仓量',
-                metric_price_premium_sub: '价格溢价',
-                metric_liquidation_sub: '全市场',
-                metric_funding_sub: '永续费率',
-                metric_etf_sub: 'BTC 总量',
-                metric_fear_sub: '市场情绪',
+                metric_open_interest_sub: '全交易所永续合约的持仓总量',
+                metric_price_premium_sub: 'Coinbase相对溢价指数',
+                metric_liquidation_sub: '市场爆仓总量',
+                metric_funding_sub: '永续合约资金费率，每8h结算',
+                metric_etf_sub: '净流入总价值 (USD)',
+                metric_fear_sub: '市场恐慌与贪婪的情绪指标',
                 asset_btc: '比特币',
                 asset_eth: '以太坊',
                 asset_doge: '狗狗币',
@@ -1204,7 +1204,18 @@
             const option = {
                 backgroundColor: 'transparent',
                 title: { text: t('open_interest'), left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
-                tooltip: { trigger: 'axis' },
+                tooltip: {
+                    trigger: 'axis',
+                    formatter: function(params) {
+                        if (!params || !params.length) return '';
+                        const header = params[0].axisValue || '';
+                        const rows = params.map(p => {
+                            const v = p.seriesName === labelPrice ? formatPrice(p.value) : formatNumber(p.value);
+                            return `<div class="tooltip-row"><span class="tooltip-label">${p.seriesName}</span><span class="tooltip-value">${v}</span></div>`;
+                        }).join('');
+                        return `<div class="custom-tooltip"><div class="tooltip-header">${header}</div>${rows}</div>`;
+                    }
+                },
                 legend: {
                     data: [
                         { name: labelOi, icon: 'rect', itemStyle: { color: '#f8cb46' } },
@@ -1240,7 +1251,18 @@
             const option = {
                 backgroundColor: 'transparent',
                 title: { text: t('funding_rate'), left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
-                tooltip: { trigger: 'axis' },
+                tooltip: {
+                    trigger: 'axis',
+                    formatter: function(params) {
+                        if (!params || !params.length) return '';
+                        const header = params[0].axisValue || '';
+                        const rows = params.map(p => {
+                            const v = p.seriesName === labelPrice ? formatPrice(p.value) : formatPercent(p.value, 4);
+                            return `<div class="tooltip-row"><span class="tooltip-label">${p.seriesName}</span><span class="tooltip-value">${v}</span></div>`;
+                        }).join('');
+                        return `<div class="custom-tooltip"><div class="tooltip-header">${header}</div>${rows}</div>`;
+                    }
+                },
                 legend: {
                     data: [
                         { name: labelFunding, icon: 'rect', itemStyle: { color: '#f8cb46' } },
@@ -1289,7 +1311,19 @@
             const option = {
                 backgroundColor: 'transparent',
                 title: { text: t('liquidation_24h'), left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
-                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    formatter: function(params) {
+                        if (!params || !params.length) return '';
+                        const header = params[0].axisValue || '';
+                        const rows = params.map(p => {
+                            const v = formatNumber(p.value);
+                            return `<div class="tooltip-row"><span class="tooltip-label">${p.seriesName}</span><span class="tooltip-value">${v}</span></div>`;
+                        }).join('');
+                        return `<div class="custom-tooltip"><div class="tooltip-header">${header}</div>${rows}</div>`;
+                    }
+                },
                 grid: { left: '6%', right: '6%', bottom: '12%', top: '18%', containLabel: true },
                 xAxis: { type: 'value', scale: true, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
                 yAxis: { type: 'category', data: exchanges, inverse: true, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86' } },
@@ -1351,7 +1385,19 @@
             const option = {
                 backgroundColor: 'transparent',
                 title: { text: t('exchange_balance'), left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
-                tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'cross' },
+                    formatter: function(params) {
+                        if (!params || !params.length) return '';
+                        const header = params[0].axisValue || '';
+                        const rows = params.map(p => {
+                            const v = p.seriesName === t('legend_price') ? formatPrice(p.value) : formatNumber(p.value);
+                            return `<div class="tooltip-row"><span class="tooltip-label">${p.seriesName}</span><span class="tooltip-value">${v}</span></div>`;
+                        }).join('');
+                        return `<div class="custom-tooltip"><div class="tooltip-header">${header}</div>${rows}</div>`;
+                    }
+                },
                 legend: {
                     data: [
                         { name: t('legend_balance'), icon: 'rect', itemStyle: { color: '#f8cb46' } },
@@ -1385,7 +1431,18 @@
             const option = {
                 backgroundColor: 'transparent',
                 title: { text: t('fear_greed'), left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
-                tooltip: { trigger: 'axis' },
+                tooltip: {
+                    trigger: 'axis',
+                    formatter: function(params) {
+                        if (!params || !params.length) return '';
+                        const header = params[0].axisValue || '';
+                        const rows = params.map(p => {
+                            const v = p.seriesName === t('legend_price') ? formatPrice(p.value) : formatNumber(p.value);
+                            return `<div class="tooltip-row"><span class="tooltip-label">${p.seriesName}</span><span class="tooltip-value">${v}</span></div>`;
+                        }).join('');
+                        return `<div class="custom-tooltip"><div class="tooltip-header">${header}</div>${rows}</div>`;
+                    }
+                },
                 legend: {
                     data: [
                         { name: t('legend_index'), icon: 'rect', itemStyle: { color: '#f8cb46' } },
