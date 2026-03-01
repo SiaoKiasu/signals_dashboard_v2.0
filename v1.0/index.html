@@ -641,7 +641,7 @@
 
     <div class="header">
         <div>
-            <h2>S&L Bro. Portal<span class="header-sub" id="header-sub">Professional · Trustworthy · Integrity · Growth</span></h2>
+            <h2>S&L Bro. Portal<span class="header-sub" id="header-sub">Professional · Integrity · Explore · Growth</span></h2>
         </div>
         <div style="margin-left:auto; display:flex; gap:10px; align-items:center;">
             <button id="lang-toggle" style="background:transparent; border:1px solid #2a2e39; color:#d1d4dc; padding:6px 10px; border-radius:10px; cursor:pointer; font-size:12px;">中文</button>
@@ -1013,6 +1013,7 @@
                 const fear = marketPayloadCache.fearGreed || { dates: [], values: [], prices: [] };
                 const oiPrice = alignSeries(oi.dates || [], exb.dates || [], exb.prices || []);
                 const fundingPrice = alignSeries(funding.dates || [], exb.dates || [], exb.prices || []);
+                if (marketPayloadCache.prices) updateMarketCards(marketPayloadCache.prices);
                 renderOiChart(oi, oiPrice);
                 renderFundingChart(funding, fundingPrice);
                 renderLiquidationChart(marketPayloadCache.liquidation || { exchanges: [], long: [], short: [] });
