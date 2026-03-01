@@ -641,9 +641,12 @@
 
     <div class="header">
         <div>
-            <h2>S&L Bro. Portal<span class="header-sub">Professional · Trustworthy · Integrity · Growth</span></h2>
+            <h2>S&L Bro. Portal<span class="header-sub" id="header-sub">Professional · Trustworthy · Integrity · Growth</span></h2>
         </div>
-        <div id="auth-box" style="margin-left:auto; display:flex; gap:10px; align-items:center;"></div>
+        <div style="margin-left:auto; display:flex; gap:10px; align-items:center;">
+            <button id="lang-toggle" style="background:transparent; border:1px solid #2a2e39; color:#d1d4dc; padding:6px 10px; border-radius:10px; cursor:pointer; font-size:12px;">中文</button>
+            <div id="auth-box" style="display:flex; gap:10px; align-items:center;"></div>
+        </div>
     </div>
 
     <div class="portal">
@@ -651,14 +654,14 @@
         <div class="portal-card">
             <div class="portal-card-inner">
                 <div class="portal-card-title">
-                    <div class="t1">Market Snapshot</div>
-                    <div class="t2">Live Data</div>
+                    <div class="t1" id="market-title">Market Snapshot</div>
+                    <div class="t2" id="market-sub">Live Data</div>
                 </div>
                 <div class="snapshot-grid">
                     <div class="asset-stack" id="market-cards"></div>
                     <div class="metrics-panel">
                         <div class="metrics-head">
-                            <div class="mh1">Key Metrics</div>
+                            <div class="mh1" id="metrics-title">Key Metrics</div>
                             <!-- <div class="mh2">Live Data</div> -->
                         </div>
                         <div class="metrics-grid" id="market-metrics"></div>
@@ -671,8 +674,8 @@
         <div class="portal-card">
             <div class="portal-card-inner">
                 <div class="portal-card-title">
-                    <div class="t1">Market Indicators</div>
-                    <div class="t2">Historical Data</div>
+                    <div class="t1" id="indicators-title">Market Indicators</div>
+                    <div class="t2" id="indicators-sub">Historical Data</div>
                 </div>
                 <div class="charts-grid">
                     <div id="chart-liquidation" class="chart-iframe"></div>
@@ -698,8 +701,8 @@
             <div class="portal-card-inner">
                 <div class="signals-topbar">
                     <div class="portal-card-title" style="margin-bottom:0;">
-                        <div class="t1">Signals</div>
-                        <div class="t2">Signal Data</div>
+                        <div class="t1" id="signals-title">Signals</div>
+                        <div class="t2" id="signals-sub">Signal Data</div>
                     </div>
                     <div class="category-tabs" id="category-tabs"></div>
                     <div class="signal-buttons" id="signal-buttons"></div>
@@ -711,10 +714,10 @@
         <div class="portal-card">
             <div class="portal-card-inner">
                 <div class="portal-card-title">
-                    <div class="t1">Hyperliquid Whales Monitor</div>
-                    <div class="t2">Hyperliquid Data</div>
+                    <div class="t1" id="whales-title">Hyperliquid Whales Monitor</div>
+                    <div class="t2" id="whales-sub">Hyperliquid Data</div>
                 </div>
-                <div class="chart-iframe" style="display:flex; align-items:center; justify-content:center; color:#787b86;">
+                <div class="chart-iframe" id="whales-coming" style="display:flex; align-items:center; justify-content:center; color:#787b86;">
                     Coming Soon
                 </div>
             </div>
@@ -725,20 +728,20 @@
 
     <div id="upgrade-modal" class="upgrade-modal">
         <div class="upgrade-card">
-            <div class="upgrade-title">Upgrade Plan</div>
+            <div class="upgrade-title" id="upgrade-title">Upgrade Plan</div>
             <div class="upgrade-row">
-                <label>Plan</label>
+                <label id="upgrade-label-plan">Plan</label>
                 <select id="upgrade-plan">
                     <option value="pro">Pro</option>
                     <option value="ultra">Ultra</option>
                 </select>
             </div>
             <div class="upgrade-row">
-                <label>Price</label>
+                <label id="upgrade-label-price">Price</label>
                 <div id="upgrade-price" style="font-size:12px; color:#d1d4dc;">-</div>
             </div>
             <div class="upgrade-row">
-                <label>Network</label>
+                <label id="upgrade-label-network">Network</label>
                 <select id="upgrade-network">
                     <option value="ethereum">Ethereum</option>
                     <option value="bnb">BNB</option>
@@ -747,18 +750,18 @@
                 </select>
             </div>
             <div class="upgrade-row" style="align-items:flex-start;">
-                <label>Address</label>
+                <label id="upgrade-label-address">Address</label>
                 <div style="flex:1;">
                     <div id="upgrade-address" class="upgrade-address">-</div>
                     <div id="upgrade-recommend" class="upgrade-recommend"></div>
                 </div>
             </div>
             <div class="upgrade-row">
-                <label>Tx Hash</label>
+                <label id="upgrade-label-hash">Tx Hash</label>
                 <input id="upgrade-hash" placeholder="Please paste transaction hash" />
             </div>
-            <div class="upgrade-hint">
-                请先完成转账，然后复制交易 Hash 在这里提交确认。Solana 暂不支持，请不要充值。
+            <div class="upgrade-hint" id="upgrade-hint">
+                Please complete the transfer, then paste the tx hash to confirm. Solana is not supported.
             </div>
             <div class="upgrade-actions">
                 <button id="upgrade-submit" class="upgrade-btn">Submit</button>
@@ -766,29 +769,268 @@
             </div>
             <div id="upgrade-status" class="upgrade-status" style="display:none;">
                 <div class="spinner"></div>
-                <div id="upgrade-status-text">处理中，请等待确认...</div>
+                <div id="upgrade-status-text">Processing, please wait...</div>
             </div>
         </div>
     </div>
 
     <script>
 
+        const I18N = {
+            en: {
+                lang_toggle: '中文',
+                header_sub: 'Professional · Trustworthy · Integrity · Growth',
+                market_title: 'Market Snapshot',
+                market_sub: 'Live Data',
+                indicators_title: 'Market Indicators',
+                indicators_sub: 'Historical Data',
+                signals_title: 'Signals',
+                signals_sub: 'Signal Data',
+                metrics_title: 'Key Metrics',
+                whales_title: 'Hyperliquid Whales Monitor',
+                whales_sub: 'Hyperliquid Data',
+                coming_soon: 'Coming Soon',
+                upgrade_title: 'Upgrade Plan',
+                label_plan: 'Plan',
+                label_price: 'Price',
+                label_network: 'Network',
+                label_address: 'Address',
+                label_hash: 'Tx Hash',
+                hash_placeholder: 'Please paste transaction hash',
+                upgrade_hint: 'Please complete the transfer, then paste the tx hash to confirm. Solana is not supported.',
+                price_suffix: '/ 30 days',
+                btn_submit: 'Submit',
+                btn_close: 'Close',
+                status_processing: 'Processing, please wait...',
+                status_solana: 'Solana not supported. Do not transfer.',
+                status_need_hash: 'Please enter tx hash',
+                status_verify_failed: 'Verification failed. Please retry',
+                status_verify_ok: 'Verified. Membership updated',
+                status_network: 'Network error. Please retry',
+                expired: 'Expired',
+                time_format: '{days}d {hours}h {mins}m',
+                login: 'Login with Discord',
+                logout: 'Logout',
+                tier: 'Tier',
+                remaining: 'Remaining',
+                upgrade_btn: 'Upgrade Plan',
+                source: 'Source',
+                recommended: 'Recommended',
+                contact_support: 'Contact support',
+                cat_crash_title: 'Signal SHORT',
+                cat_crash_desc: 'Downward signal for potential short setups.',
+                cat_surge_title: 'Signal LONG',
+                cat_surge_desc: 'Upward signal for potential long setups.',
+                cat_cyclical_title: 'Signal CYCLICAL',
+                cat_cyclical_desc: 'Cyclical short-to-long signal.',
+                signal_need_tier: 'This signal requires {tier} membership',
+                signal_need_tier_perm: 'This signal requires {tier} membership',
+                lock_mask: 'This signal is available to <b>{tier}</b> members only. Please upgrade to view details.',
+                trigger: 'Trigger',
+                high_prob: 'High Prob',
+                status: 'Status',
+                price: 'Price',
+                status_trigger: '🟥 Trigger',
+                status_high_prob: '🟨 High Prob',
+                probability: 'Probability',
+                open_interest: 'Open Interest',
+                funding_rate: 'Funding Rate',
+                liquidation_24h: 'Liquidation (24h)',
+                etf_net_flow: 'ETF Net Flow',
+                exchange_balance: 'Exchange Balance',
+                fear_greed: 'Fear & Greed',
+                legend_oi: 'OI',
+                legend_funding: 'Funding',
+                legend_balance: 'Balance',
+                legend_index: 'Index',
+                legend_price: 'Price',
+                legend_long: 'Long',
+                legend_short: 'Short',
+                legend_etf: 'ETF Flow',
+                metric_latest_oi: 'Latest OI',
+                metric_coinbase_premium: 'Coinbase Premium',
+                metric_liquidation: '24h Liquidation',
+                metric_funding: 'Funding Rate',
+                metric_etf: 'ETF Net Flow',
+                metric_fear: 'Fear & Greed',
+                metric_open_interest_sub: 'Open interest',
+                metric_price_premium_sub: 'Price premium',
+                metric_liquidation_sub: 'All exchanges',
+                metric_funding_sub: 'Perp funding',
+                metric_etf_sub: 'BTC total',
+                metric_fear_sub: 'Market sentiment',
+                asset_btc: 'Bitcoin',
+                asset_eth: 'Ethereum',
+                asset_doge: 'Dogecoin',
+            },
+            zh: {
+                lang_toggle: 'EN',
+                header_sub: '专业可信 · 诚信为本 · 持续探索 · 不断成长',
+                market_title: '市场概览',
+                market_sub: '实时数据',
+                indicators_title: '市场指标',
+                indicators_sub: '历史数据',
+                signals_title: '信号',
+                signals_sub: '信号数据',
+                metrics_title: '关键指标',
+                whales_title: 'Hyperliquid 巨鲸监控',
+                whales_sub: '即将上线',
+                coming_soon: '即将上线',
+                upgrade_title: '升级会员',
+                label_plan: '会员等级',
+                label_price: '价格',
+                label_network: '网络',
+                label_address: '收款地址',
+                label_hash: '交易 Hash',
+                hash_placeholder: '请粘贴交易 Hash',
+                upgrade_hint: '请先完成转账，然后复制交易 Hash 在这里提交确认。Solana 暂不支持，请不要充值。',
+                price_suffix: '/ 30天',
+                btn_submit: '提交',
+                btn_close: '关闭',
+                status_processing: '处理中，请等待确认...',
+                status_solana: 'Solana 暂不支持，请不要充值',
+                status_need_hash: '请填写交易 Hash',
+                status_verify_failed: '验证失败，请重试',
+                status_verify_ok: '充值验证成功，会员已更新',
+                status_network: '网络异常，请重试',
+                expired: '已到期',
+                time_format: '{days}天 {hours}小时 {mins}分钟',
+                login: '使用 Discord 登录',
+                logout: '退出',
+                tier: '会员等级',
+                remaining: '剩余时间',
+                upgrade_btn: '升级会员',
+                source: '来源',
+                recommended: '推荐',
+                contact_support: '请联系管理员',
+                cat_crash_title: '大跌信号',
+                cat_crash_desc: '触发后至少伴随 5% 以上的跌幅，可直接做空。',
+                cat_surge_title: '大涨信号',
+                cat_surge_desc: '触发后伴随 10% 以上涨幅，通常需要连续触发 20+ 天/不再触发后做多。',
+                cat_cyclical_title: '周期性空头',
+                cat_cyclical_desc: '触发后通常先跌 3%-5% 再涨 10% 以上，可以先做空再做多。',
+                signal_need_tier: '该信号需要 {tier} 会员',
+                signal_need_tier_perm: '该信号需要 {tier} 会员权限',
+                lock_mask: '该信号仅对 <b>{tier}</b> 会员开放，请升级会员后查看详情。',
+                trigger: '触发信号',
+                high_prob: '高概率',
+                status: '状态',
+                price: '价格',
+                status_trigger: '🟥 触发信号',
+                status_high_prob: '🟨 高概率预警',
+                probability: '概率',
+                open_interest: '持仓量',
+                funding_rate: '资金费率',
+                liquidation_24h: '爆仓 (24h)',
+                etf_net_flow: 'ETF 净流入',
+                exchange_balance: '交易所余额',
+                fear_greed: '恐惧与贪婪',
+                legend_oi: 'OI',
+                legend_funding: '资金费率',
+                legend_balance: '余额',
+                legend_index: '指数',
+                legend_price: '价格',
+                legend_long: '多头',
+                legend_short: '空头',
+                legend_etf: 'ETF 净流入',
+                metric_latest_oi: '最新 OI',
+                metric_coinbase_premium: 'Coinbase 溢价',
+                metric_liquidation: '24h 爆仓',
+                metric_funding: '资金费率',
+                metric_etf: 'ETF 净流入',
+                metric_fear: '恐惧与贪婪',
+                metric_open_interest_sub: '持仓量',
+                metric_price_premium_sub: '价格溢价',
+                metric_liquidation_sub: '全市场',
+                metric_funding_sub: '永续费率',
+                metric_etf_sub: 'BTC 总量',
+                metric_fear_sub: '市场情绪',
+                asset_btc: '比特币',
+                asset_eth: '以太坊',
+                asset_doge: '狗狗币',
+            }
+        };
+        let currentLang = localStorage.getItem('portal_lang') || 'en';
+        function t(key, vars) {
+            const dict = I18N[currentLang] || I18N.en;
+            let text = dict[key] || I18N.en[key] || key;
+            if (vars) {
+                Object.keys(vars).forEach(k => {
+                    text = text.replaceAll(`{${k}}`, vars[k]);
+                });
+            }
+            return text;
+        }
+        function applyI18n() {
+            const setText = (id, value) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = value;
+            };
+            setText('header-sub', t('header_sub'));
+            setText('market-title', t('market_title'));
+            setText('market-sub', t('market_sub'));
+            setText('indicators-title', t('indicators_title'));
+            setText('indicators-sub', t('indicators_sub'));
+            setText('signals-title', t('signals_title'));
+            setText('signals-sub', t('signals_sub'));
+            setText('metrics-title', t('metrics_title'));
+            setText('whales-title', t('whales_title'));
+            setText('whales-sub', t('whales_sub'));
+            setText('whales-coming', t('coming_soon'));
+            setText('upgrade-title', t('upgrade_title'));
+            setText('upgrade-label-plan', t('label_plan'));
+            setText('upgrade-label-price', t('label_price'));
+            setText('upgrade-label-network', t('label_network'));
+            setText('upgrade-label-address', t('label_address'));
+            setText('upgrade-label-hash', t('label_hash'));
+            setText('upgrade-hint', t('upgrade_hint'));
+            const hashInput = document.getElementById('upgrade-hash');
+            if (hashInput) hashInput.placeholder = t('hash_placeholder');
+            const submitBtn = document.getElementById('upgrade-submit');
+            const closeBtn = document.getElementById('upgrade-close');
+            if (submitBtn) submitBtn.textContent = t('btn_submit');
+            if (closeBtn) closeBtn.textContent = t('btn_close');
+            const statusText = document.getElementById('upgrade-status-text');
+            if (statusText) statusText.textContent = t('status_processing');
+            const langBtn = document.getElementById('lang-toggle');
+            if (langBtn) langBtn.textContent = t('lang_toggle');
+        }
+        function setLanguage(lang) {
+            currentLang = lang === 'zh' ? 'zh' : 'en';
+            localStorage.setItem('portal_lang', currentLang);
+            applyI18n();
+            renderCategoryTabs();
+            renderSignalButtons();
+            renderMarketSnapshot();
+            if (marketPayloadCache) {
+                const etfSelect = document.getElementById('etf-symbol-select');
+                const etfSymbol = etfSelect ? etfSelect.value || 'BTC' : 'BTC';
+                const exb = marketPayloadCache.exchangeBalance || { dates: [], total: [], prices: [] };
+                const oi = marketPayloadCache.oi || { dates: [], values: [] };
+                const funding = marketPayloadCache.funding || { dates: [], values: [] };
+                const etfAll = marketPayloadCache.etf || {};
+                const etf = etfAll[etfSymbol] || { dates: [], total: [] };
+                const fear = marketPayloadCache.fearGreed || { dates: [], values: [], prices: [] };
+                const oiPrice = alignSeries(oi.dates || [], exb.dates || [], exb.prices || []);
+                const fundingPrice = alignSeries(funding.dates || [], exb.dates || [], exb.prices || []);
+                renderOiChart(oi, oiPrice);
+                renderFundingChart(funding, fundingPrice);
+                renderLiquidationChart(marketPayloadCache.liquidation || { exchanges: [], long: [], short: [] });
+                renderEtfChart(etf, etfSymbol);
+                renderExchangeBalanceChart(exb);
+                renderFearGreedChart(fear);
+                updateMarketMetrics(marketPayloadCache);
+                renderMarketSnapshot();
+            }
+        }
+
         const ALL_SIGNALS = ['signal2', 'signal7', 'signal9', 'signal18'];
         let availableSignals = ALL_SIGNALS.slice();
 
         const SIGNAL_CATEGORIES = {
-            crash_down: {
-                title: '大跌信号',
-                desc: '触发后至少伴随 5% 以上的跌幅，可直接做空。'
-            },
-            surge_up: {
-                title: '大涨信号',
-                desc: '触发后伴随 10% 以上涨幅，通常需要连续触发 20+ 天/不再触发后做多。'
-            },
-            cyclical_short: {
-                title: '周期性空头',
-                desc: '触发后通常先跌 3%-5% 再涨 10% 以上，可以先做空再做多。'
-            }
+            crash_down: { titleKey: 'cat_crash_title', descKey: 'cat_crash_desc' },
+            surge_up: { titleKey: 'cat_surge_title', descKey: 'cat_surge_desc' },
+            cyclical_short: { titleKey: 'cat_cyclical_title', descKey: 'cat_cyclical_desc' }
         };
 
         const SIGNAL_CONFIG = {
@@ -904,9 +1146,9 @@
             const eth = Number.isFinite(prices.eth) ? prices.eth : null;
             const doge = Number.isFinite(prices.doge) ? prices.doge : null;
             window.PORTAL_MARKET_CARDS = [
-                { symbol: 'BTC', name: 'Bitcoin', icon: '฿', theme: 'theme-btc', priceText: btc != null ? `$${formatPrice(btc)}` : '-', dominanceLabel: 'Source', dominanceText: 'CoinGecko' },
-                { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', theme: 'theme-eth', priceText: eth != null ? `$${formatPrice(eth)}` : '-', dominanceLabel: 'Source', dominanceText: 'CoinGecko' },
-                { symbol: 'DOGE', name: 'Dogecoin', icon: 'Ð', theme: 'theme-doge', priceText: doge != null ? `$${Number(doge).toFixed(4)}` : '-', dominanceLabel: 'Source', dominanceText: 'CoinGecko' },
+                { symbol: 'BTC', name: t('asset_btc'), icon: '฿', theme: 'theme-btc', priceText: btc != null ? `$${formatPrice(btc)}` : '-', dominanceLabel: t('source'), dominanceText: 'CoinGecko' },
+                { symbol: 'ETH', name: t('asset_eth'), icon: 'Ξ', theme: 'theme-eth', priceText: eth != null ? `$${formatPrice(eth)}` : '-', dominanceLabel: t('source'), dominanceText: 'CoinGecko' },
+                { symbol: 'DOGE', name: t('asset_doge'), icon: 'Ð', theme: 'theme-doge', priceText: doge != null ? `$${Number(doge).toFixed(4)}` : '-', dominanceLabel: t('source'), dominanceText: 'CoinGecko' },
             ];
         }
 
@@ -926,12 +1168,12 @@
                 }
             }
             window.PORTAL_MARKET_METRICS = [
-                { key: 'Latest OI', value: oiLatest != null ? formatNumber(oiLatest) : '-', sub: 'Open interest' },
-                { key: 'Coinbase Premium', value: premiumRate != null ? formatPercent(premiumRate, 4) : '-', sub: 'Price premium' },
-                { key: '24h Liquidation', value: liquidationTotal != null ? formatNumber(liquidationTotal) : '-', sub: 'All exchanges' },
-                { key: 'Funding Rate', value: fundingLatest != null ? formatPercent(fundingLatest, 4) : '-', sub: 'Perp funding' },
-                { key: 'ETF Net Flow', value: etfBtcLatest != null ? formatNumber(etfBtcLatest) : '-', sub: 'BTC total' },
-                { key: 'Fear & Greed', value: fearGreed != null ? String(fearGreed) : '-', sub: 'Market sentiment' },
+                { key: t('metric_latest_oi'), value: oiLatest != null ? formatNumber(oiLatest) : '-', sub: t('metric_open_interest_sub') },
+                { key: t('metric_coinbase_premium'), value: premiumRate != null ? formatPercent(premiumRate, 4) : '-', sub: t('metric_price_premium_sub') },
+                { key: t('metric_liquidation'), value: liquidationTotal != null ? formatNumber(liquidationTotal) : '-', sub: t('metric_liquidation_sub') },
+                { key: t('metric_funding'), value: fundingLatest != null ? formatPercent(fundingLatest, 4) : '-', sub: t('metric_funding_sub') },
+                { key: t('metric_etf'), value: etfBtcLatest != null ? formatNumber(etfBtcLatest) : '-', sub: t('metric_etf_sub') },
+                { key: t('metric_fear'), value: fearGreed != null ? String(fearGreed) : '-', sub: t('metric_fear_sub') },
             ];
         }
 
@@ -957,14 +1199,16 @@
             const c = getChart('chart-oi');
             if (!c) return;
             const sliced = sliceRecent(data.dates || [], [data.values || [], priceSeries || []]);
+            const labelOi = t('legend_oi');
+            const labelPrice = t('legend_price');
             const option = {
                 backgroundColor: 'transparent',
-                title: { text: 'Open Interest', left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
+                title: { text: t('open_interest'), left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
                 tooltip: { trigger: 'axis' },
                 legend: {
                     data: [
-                        { name: 'OI', icon: 'rect', itemStyle: { color: '#f8cb46' } },
-                        { name: 'Price', icon: 'rect', itemStyle: { color: '#2962ff' } }
+                        { name: labelOi, icon: 'rect', itemStyle: { color: '#f8cb46' } },
+                        { name: labelPrice, icon: 'rect', itemStyle: { color: '#2962ff' } }
                     ],
                     top: 6,
                     right: 10,
@@ -980,8 +1224,8 @@
                     { type: 'value', scale: true, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => formatPrice(v) } }
                 ],
                 series: [
-                    { name: 'OI', type: 'line', data: sliced.series[0] || [], symbol: 'none', lineStyle: { color: '#f8cb46', width: 2 } },
-                    { name: 'Price', type: 'line', data: sliced.series[1] || [], yAxisIndex: 1, symbol: 'none', lineStyle: { color: '#2962ff', width: 1.6 } }
+                    { name: labelOi, type: 'line', data: sliced.series[0] || [], symbol: 'none', lineStyle: { color: '#f8cb46', width: 2 } },
+                    { name: labelPrice, type: 'line', data: sliced.series[1] || [], yAxisIndex: 1, symbol: 'none', lineStyle: { color: '#2962ff', width: 1.6 } }
                 ]
             };
             c.setOption(option, { notMerge: true, lazyUpdate: false });
@@ -991,14 +1235,16 @@
             const c = getChart('chart-funding');
             if (!c) return;
             const sliced = sliceRecent(data.dates || [], [data.values || [], priceSeries || []]);
+            const labelFunding = t('legend_funding');
+            const labelPrice = t('legend_price');
             const option = {
                 backgroundColor: 'transparent',
-                title: { text: 'Funding Rate', left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
+                title: { text: t('funding_rate'), left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
                 tooltip: { trigger: 'axis' },
                 legend: {
                     data: [
-                        { name: 'Funding', icon: 'rect', itemStyle: { color: '#f8cb46' } },
-                        { name: 'Price', icon: 'rect', itemStyle: { color: '#2962ff' } }
+                        { name: labelFunding, icon: 'rect', itemStyle: { color: '#f8cb46' } },
+                        { name: labelPrice, icon: 'rect', itemStyle: { color: '#2962ff' } }
                     ],
                     top: 6,
                     right: 10,
@@ -1029,8 +1275,8 @@
                     { type: 'value', scale: true, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => formatPrice(v) } }
                 ],
                 series: [
-                    { name: 'Funding', type: 'line', data: sliced.series[0] || [], symbol: 'none', lineStyle: { color: '#f8cb46', width: 2 } },
-                    { name: 'Price', type: 'line', data: sliced.series[1] || [], yAxisIndex: 1, symbol: 'none', lineStyle: { color: '#2962ff', width: 1.6 } }
+                    { name: labelFunding, type: 'line', data: sliced.series[0] || [], symbol: 'none', lineStyle: { color: '#f8cb46', width: 2 } },
+                    { name: labelPrice, type: 'line', data: sliced.series[1] || [], yAxisIndex: 1, symbol: 'none', lineStyle: { color: '#2962ff', width: 1.6 } }
                 ]
             };
             c.setOption(option, { notMerge: true, lazyUpdate: false });
@@ -1042,14 +1288,14 @@
             const exchanges = data.exchanges || [];
             const option = {
                 backgroundColor: 'transparent',
-                title: { text: 'Liquidation (24h)', left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
+                title: { text: t('liquidation_24h'), left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
                 tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
                 grid: { left: '6%', right: '6%', bottom: '12%', top: '18%', containLabel: true },
                 xAxis: { type: 'value', scale: true, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
                 yAxis: { type: 'category', data: exchanges, inverse: true, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86' } },
                 series: [
-                    { name: 'Long', type: 'bar', stack: 'total', data: data.long || [], barWidth: 16, itemStyle: { color: '#26a69a' } },
-                    { name: 'Short', type: 'bar', stack: 'total', data: data.short || [], barWidth: 16, itemStyle: { color: '#f23645' } }
+                    { name: t('legend_long'), type: 'bar', stack: 'total', data: data.long || [], barWidth: 16, itemStyle: { color: '#26a69a' } },
+                    { name: t('legend_short'), type: 'bar', stack: 'total', data: data.short || [], barWidth: 16, itemStyle: { color: '#f23645' } }
                 ]
             };
             c.setOption(option, { notMerge: true, lazyUpdate: false });
@@ -1064,7 +1310,7 @@
             const tickers = data.tickers || [];
             const option = {
                 backgroundColor: 'transparent',
-                title: { text: `ETF Net Flow (${etfSymbol || 'BTC'})`, left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
+                title: { text: `${t('etf_net_flow')} (${etfSymbol || 'BTC'})`, left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
                 tooltip: {
                     trigger: 'axis',
                     axisPointer: { type: 'shadow' },
@@ -1075,7 +1321,7 @@
                         html += '<div style="color:#787b86; font-size:12px; margin-bottom:8px; border-bottom:1px solid #2a2e39; padding-bottom:6px;">' + params[0].axisValue + '</div>';
                         const v = params[0].value || 0;
                         const color = v >= 0 ? '#26a69a' : '#f23645';
-                        html += '<div style="display:flex; justify-content:space-between; gap:24px;"><span style="color:#787b86;">Total Flow</span><span style="color:' + color + '; font-family:monospace;">' + formatNumber(v) + '</span></div>';
+                        html += '<div style="display:flex; justify-content:space-between; gap:24px;"><span style="color:#787b86;">' + t('legend_etf') + '</span><span style="color:' + color + '; font-family:monospace;">' + formatNumber(v) + '</span></div>';
                         tickers.forEach(function(tk) {
                             const rv = (detail[tk] || [])[idx] || 0;
                             const rc = rv >= 0 ? '#26a69a' : '#f23645';
@@ -1104,12 +1350,12 @@
             const sliced = sliceRecent(data.dates || [], [data.total || [], data.prices || []]);
             const option = {
                 backgroundColor: 'transparent',
-                title: { text: 'Exchange Balance', left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
+                title: { text: t('exchange_balance'), left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
                 tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
                 legend: {
                     data: [
-                        { name: 'Balance', icon: 'rect', itemStyle: { color: '#f8cb46' } },
-                        { name: 'Price', icon: 'rect', itemStyle: { color: '#2962ff' } }
+                        { name: t('legend_balance'), icon: 'rect', itemStyle: { color: '#f8cb46' } },
+                        { name: t('legend_price'), icon: 'rect', itemStyle: { color: '#2962ff' } }
                     ],
                     top: 6,
                     right: 10,
@@ -1125,8 +1371,8 @@
                     { type: 'value', scale: true, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => formatPrice(v) } }
                 ],
                 series: [
-                    { name: 'Balance', type: 'line', data: sliced.series[0] || [], symbol: 'none', lineStyle: { color: '#f8cb46', width: 2 } },
-                    { name: 'Price', type: 'line', data: sliced.series[1] || [], yAxisIndex: 1, symbol: 'none', lineStyle: { color: '#2962ff', width: 2 } }
+                    { name: t('legend_balance'), type: 'line', data: sliced.series[0] || [], symbol: 'none', lineStyle: { color: '#f8cb46', width: 2 } },
+                    { name: t('legend_price'), type: 'line', data: sliced.series[1] || [], yAxisIndex: 1, symbol: 'none', lineStyle: { color: '#2962ff', width: 2 } }
                 ]
             };
             c.setOption(option, { notMerge: true, lazyUpdate: false });
@@ -1138,12 +1384,12 @@
             const sliced = sliceRecent(data.dates || [], [data.values || [], data.prices || []]);
             const option = {
                 backgroundColor: 'transparent',
-                title: { text: 'Fear & Greed', left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
+                title: { text: t('fear_greed'), left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
                 tooltip: { trigger: 'axis' },
                 legend: {
                     data: [
-                        { name: 'Index', icon: 'rect', itemStyle: { color: '#f8cb46' } },
-                        { name: 'Price', icon: 'rect', itemStyle: { color: '#2962ff' } }
+                        { name: t('legend_index'), icon: 'rect', itemStyle: { color: '#f8cb46' } },
+                        { name: t('legend_price'), icon: 'rect', itemStyle: { color: '#2962ff' } }
                     ],
                     top: 6,
                     right: 10,
@@ -1160,7 +1406,7 @@
                 ],
                 series: [
                     {
-                        name: 'Index',
+                        name: t('legend_index'),
                         type: 'line',
                         data: sliced.series[0] || [],
                         symbol: 'none',
@@ -1180,7 +1426,7 @@
                         }
                     },
                     {
-                        name: 'Price',
+                        name: t('legend_price'),
                         type: 'line',
                         data: sliced.series[1] || [],
                         yAxisIndex: 1,
@@ -1244,7 +1490,7 @@
                 const name = c.name || c.symbol || '';
                 const price = c.priceText || '-';
                 const dom = c.dominanceText || '-';
-                const domLabel = c.dominanceLabel || 'Dominance';
+                const domLabel = c.dominanceLabel || t('source');
                 return `
                 <div class="mcard ${theme}">
                     <div class="mcard-head">
@@ -1291,7 +1537,7 @@
             const cat = SIGNAL_CATEGORIES[catKey];
             if (!el || !cat) return;
 
-            el.innerHTML = `<div class="t-title">${cat.title}</div><div class="t-desc">${cat.desc}</div>`;
+            el.innerHTML = `<div class="t-title">${t(cat.titleKey)}</div><div class="t-desc">${t(cat.descKey)}</div>`;
             el.style.display = 'block';
 
             const pad = 12;
@@ -1332,7 +1578,7 @@
                 container.appendChild(mask);
             }
             const tierLabel = String(requiredTier || 'ultra').toUpperCase();
-            mask.innerHTML = `该信号仅对 <b>${tierLabel}</b> 会员开放，请升级会员后查看详情。`;
+            mask.innerHTML = t('lock_mask', { tier: tierLabel });
         }
 
         function hideChartLockMask() {
@@ -1389,10 +1635,14 @@
             const triggerScatterData = triggerPoints.map(p => p.coord);
             const highProbScatterData = highProbPoints.map(p => p.coord);
 
+            const labelPrice = t('price');
+            const labelTrigger = t('trigger');
+            const labelHighProb = t('high_prob');
+            const labelStatus = t('status');
             const series = [
 
                 {
-                    name: 'Price',
+                    name: labelPrice,
                     type: 'line',
                     data: prices,
                     smooth: false,
@@ -1407,7 +1657,7 @@
                 },
 
                 {
-                    name: '触发信号',
+                    name: labelTrigger,
                     type: 'scatter',
                     data: triggerScatterData,
                     symbol: 'circle',
@@ -1424,7 +1674,7 @@
 
             if (hasHighProb) {
                 series.push({
-                    name: '高概率预警',
+                    name: labelHighProb,
                     type: 'scatter',
                     data: highProbScatterData,
                     symbol: 'circle',
@@ -1465,18 +1715,18 @@
                         
                         if (sigVal === 1 || sigVal === 2 || sigVal === 5) {
                             extraHtml += `<div class="tooltip-row">
-                                <span class="tooltip-label">Status</span>
-                                <span class="tooltip-signal">🟥 触发信号</span>
+                                <span class="tooltip-label">${labelStatus}</span>
+                                <span class="tooltip-signal">${t('status_trigger')}</span>
                             </div>`;
                         } else if (sigVal === 3 && hasHighProb) {
 
                             const probPercent = (probVal * 100).toFixed(2) + '%';
                             extraHtml += `<div class="tooltip-row">
-                                <span class="tooltip-label">Status</span>
-                                <span class="tooltip-prob">🟨 高概率预警</span>
+                                <span class="tooltip-label">${labelStatus}</span>
+                                <span class="tooltip-prob">${t('status_high_prob')}</span>
                             </div>
                             <div class="tooltip-row">
-                                <span class="tooltip-label">Probability</span>
+                                <span class="tooltip-label">${t('probability')}</span>
                                 <span class="tooltip-value" style="color: var(--signal-yellow)">${probPercent}</span>
                             </div>`;
                         }
@@ -1485,15 +1735,15 @@
                         <div class="custom-tooltip">
                             <div class="tooltip-header">${dateStr}</div>
                             <div class="tooltip-row">
-                                <span class="tooltip-label">Price</span>
-                                <span class="tooltip-value">${price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4})}</span>
+                                <span class="tooltip-label">${labelPrice}</span>
+                                <span class="tooltip-value">${formatPrice(price)}</span>
                             </div>
                             ${extraHtml}
                         </div>`;
                     }
                 },
                 legend: {
-                    data: hasHighProb ? ['Price', '触发信号', '高概率预警'] : ['Price', '触发信号'],
+                    data: hasHighProb ? [labelPrice, labelTrigger, labelHighProb] : [labelPrice, labelTrigger],
                     textStyle: { color: '#787b86', fontSize: 12 },
                     top: 0,
                     icon: 'circle',
@@ -1564,7 +1814,7 @@
                 if (!cat) return;
 
                 const btn = document.createElement('button');
-                btn.innerText = cat.title;
+                btn.innerText = t(cat.titleKey);
                 btn.dataset.category = catKey;
                 btn.className = (catKey === currentCategory) ? 'active' : '';
 
@@ -1596,14 +1846,14 @@
                 btn.innerHTML = canView ? name : `${name}<span class="tier-tag">${required.toUpperCase()}</span>`;
                 btn.dataset.signal = sig;
                 btn.dataset.locked = canView ? '0' : '1';
-                if (!canView) btn.title = `该信号需要 ${required.toUpperCase()} 会员`;
+                if (!canView) btn.title = t('signal_need_tier', { tier: required.toUpperCase() });
                 btn.className = '';
                 if (!canView) btn.classList.add('locked');
                 if (sig === currentSignal) btn.classList.add('active');
                 btn.onclick = () => {
                     renderChart(sig);
                     if (!canView) {
-                        alert(`该信号需要 ${required.toUpperCase()} 会员权限`);
+                        alert(t('signal_need_tier_perm', { tier: required.toUpperCase() }));
                     }
                 };
                 el.appendChild(btn);
@@ -1696,7 +1946,7 @@
                 renderAuth();
                 document.getElementById('chart-container').innerHTML = 
                     `<div style="color:#f23645; text-align:center; margin-top:20%; font-size:14px;">
-                        数据加载失败：请登录您的 discord 账号； 如果登录后仍然无法加载，请联系管理员。
+                        ${currentLang === 'zh' ? '数据加载失败：请登录您的 discord 账号； 如果登录后仍然无法加载，请联系管理员。' : 'Failed to load data. Please login with Discord. If it still fails, contact support.'}
                     </div>`;
             }
         }
@@ -1733,13 +1983,13 @@
                 const plan = planEl ? planEl.value : 'pro';
                 const pricing = config && config.pricing ? config.pricing : {};
                 const p = plan === 'ultra' ? pricing.ultra_month_usd : pricing.pro_month_usd;
-                priceEl.textContent = Number.isFinite(p) ? `$${Math.round(p)} / 30 days` : 'Contact support';
+                priceEl.textContent = Number.isFinite(p) ? `$${Math.round(p)} ${t('price_suffix')}` : t('contact_support');
             };
             const renderAddress = () => {
                 const chain = netEl.value;
                 const addr = (config && config.addresses && config.addresses[chain]) || UPGRADE_ADDRESSES[chain] || '-';
                 addressEl.textContent = addr;
-                recommendEl.textContent = chain === 'ethereum' ? 'Recommended' : '';
+                recommendEl.textContent = chain === 'ethereum' ? t('recommended') : '';
             };
             if (netEl) {
                 netEl.onchange = renderAddress;
@@ -1766,17 +2016,17 @@
             const chain = netEl.value;
             if (chain === 'solana') {
                 statusEl.style.display = 'flex';
-                if (statusText) statusText.textContent = 'Solana 暂不支持，请不要充值';
+                if (statusText) statusText.textContent = t('status_solana');
                 return;
             }
             const txHash = String(hashEl.value || '').trim();
             if (!txHash) {
                 statusEl.style.display = 'flex';
-                if (statusText) statusText.textContent = '请填写交易 Hash';
+                if (statusText) statusText.textContent = t('status_need_hash');
                 return;
             }
             statusEl.style.display = 'flex';
-            if (statusText) statusText.textContent = '处理中，请等待确认...';
+            if (statusText) statusText.textContent = t('status_processing');
             try {
                 const r = await fetch('/api/payments/verify', {
                     method: 'POST',
@@ -1787,16 +2037,16 @@
                 const j = await r.json();
                 if (!r.ok || !j.ok) {
                     if (statusText) {
-                        const msg = j && j.error ? j.error : '验证失败，请重试';
+                        const msg = j && j.error ? j.error : t('status_verify_failed');
                         statusText.textContent = msg;
                     }
                     return;
                 }
-                if (statusText) statusText.textContent = '充值验证成功，会员已更新';
+                if (statusText) statusText.textContent = t('status_verify_ok');
                 closeUpgradeModal();
                 renderAuth();
             } catch (e) {
-                if (statusText) statusText.textContent = '网络异常，请重试';
+                if (statusText) statusText.textContent = t('status_network');
             } finally {
                 setTimeout(() => {
                     const status = document.getElementById('upgrade-status');
@@ -1816,12 +2066,12 @@
                 const ts = Date.parse(String(expiresAt || ''));
                 if (!Number.isFinite(ts)) return '-';
                 const diff = ts - Date.now();
-                if (diff <= 0) return '已到期';
+                if (diff <= 0) return t('expired');
                 const totalMin = Math.floor(diff / 60000);
                 const days = Math.floor(totalMin / (24 * 60));
                 const hours = Math.floor((totalMin % (24 * 60)) / 60);
                 const mins = totalMin % 60;
-                return `${days}天 ${hours}小时 ${mins}分钟`;
+                return t('time_format', { days, hours, mins });
             }
             function renderAuthedBox() {
                 if (!authSnapshot || !authSnapshot.authenticated) return;
@@ -1836,12 +2086,12 @@
                             <span>${authSnapshot.discord_user_id}</span>
                             <span style="font-size:10px; color:#787b86;">▼</span>
                         </div>
-                        <button id="logout-btn" style="background:transparent; border:1px solid #2a2e39; color:#d1d4dc; padding:6px 10px; border-radius:10px; cursor:pointer;">Logout</button>
+                        <button id="logout-btn" style="background:transparent; border:1px solid #2a2e39; color:#d1d4dc; padding:6px 10px; border-radius:10px; cursor:pointer;">${t('logout')}</button>
                         <div id="auth-menu-panel" style="position:absolute; right:8px; top:36px; min-width:200px; background:rgba(21,25,36,0.96); border:1px solid #2a2e39; border-radius:10px; padding:10px 12px; display:none; z-index:20;">
-                            <div style="color:#9fb3ff; font-size:12px; margin-bottom:6px;">Tier: ${tier}</div>
-                            <div style="color:#f8cb46; font-size:12px;">Remaining: ${remain}</div>
+                            <div style="color:#9fb3ff; font-size:12px; margin-bottom:6px;">${t('tier')}: ${tier}</div>
+                            <div style="color:#f8cb46; font-size:12px;">${t('remaining')}: ${remain}</div>
                             <div style="margin-top:8px;">
-                                <button id="upgrade-open" style="width:100%; background:transparent; border:1px solid #2a2e39; color:#d1d4dc; padding:6px 8px; border-radius:8px; cursor:pointer; font-size:11px;">Upgrade Plan</button>
+                                <button id="upgrade-open" style="width:100%; background:transparent; border:1px solid #2a2e39; color:#d1d4dc; padding:6px 8px; border-radius:8px; cursor:pointer; font-size:11px;">${t('upgrade_btn')}</button>
                             </div>
                         </div>
                     </div>
@@ -1873,7 +2123,7 @@
                     authSnapshot = null;
                     el.innerHTML = `<a href="/api/auth/discord" style="text-decoration:none;">
                         <button style="background:rgba(41,98,255,0.18); border:1px solid rgba(41,98,255,0.5); color:#cfe0ff; padding:6px 12px; border-radius:10px; font-weight:700; cursor:pointer;">
-                            Login with Discord
+                            ${t('login')}
                         </button>
                     </a>`;
                     return;
@@ -1908,6 +2158,13 @@
             chart.resize();
             Object.values(chartInstances).forEach(c => c && c.resize());
         });
+        const langToggle = document.getElementById('lang-toggle');
+        if (langToggle) {
+            langToggle.onclick = () => {
+                setLanguage(currentLang === 'en' ? 'zh' : 'en');
+            };
+        }
+        applyI18n();
         loadData();
         loadMarketCharts();
         loadMarketSnapshotLive();
