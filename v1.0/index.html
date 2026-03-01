@@ -950,7 +950,11 @@
                 asset_doge: '狗狗币',
             }
         };
-        let currentLang = localStorage.getItem('portal_lang') || 'en';
+        const savedLang = localStorage.getItem('portal_lang');
+        const urlLang = new URLSearchParams(location.search).get('lang');
+        let currentLang = (savedLang === 'en' || savedLang === 'zh') ? savedLang : 'en';
+        if (urlLang === 'en' || urlLang === 'zh') currentLang = urlLang;
+        localStorage.setItem('portal_lang', currentLang);
         function t(key, vars) {
             const dict = I18N[currentLang] || I18N.en;
             let text = dict[key] || I18N.en[key] || key;
