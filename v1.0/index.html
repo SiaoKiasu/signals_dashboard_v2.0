@@ -1029,7 +1029,7 @@
             }
         }
 
-        const ALL_SIGNALS = ['signal2', 'signal7', 'signal9', 'signal18'];
+        const ALL_SIGNALS = ['signal1', 'signal2', 'signal7', 'signal9', 'signal13', 'signal15', 'signal18'];
         let availableSignals = ALL_SIGNALS.slice();
 
         const SIGNAL_CATEGORIES = {
@@ -1039,14 +1039,20 @@
         };
 
         const SIGNAL_CONFIG = {
-            signal2:  { name: 'CrashRF_DOWN',   category: 'crash_down',     hasHighProb: true  },
+            signal1:  { name: 'CrashRF1_DOWN',  category: 'crash_down',     hasHighProb: true  },
+            signal2:  { name: 'CrashRF2_DOWN',  category: 'crash_down',     hasHighProb: true  },
             signal7:  { name: 'SurgeGB_UP',     category: 'surge_up',       hasHighProb: false },
             signal9:  { name: 'CyclicalLG_D2U', category: 'cyclical_short', hasHighProb: false },
+            signal13: { name: 'SurgeLG_UP',     category: 'surge_up',       hasHighProb: false },
+            signal15: { name: 'SurgeLDA_UP',    category: 'surge_up',       hasHighProb: false },
             signal18: { name: 'CrashMLP_DOWN',  category: 'crash_down',     hasHighProb: false },
         };
         const TIER_RANK = { basic: 0, pro: 1, ultra: 2 };
         const SIGNAL_REQUIRED_TIER = {
+            signal1: 'pro',
             signal2: 'pro',
+            signal13: 'pro',
+            signal15: 'pro',
             signal7: 'ultra',
             signal9: 'ultra',
             signal18: 'ultra',
