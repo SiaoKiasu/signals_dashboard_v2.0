@@ -189,7 +189,7 @@
         .theme-eth { background: linear-gradient(135deg, rgba(140, 85, 255, 0.95), rgba(110, 74, 255, 0.78)); }
         .theme-usd { background: linear-gradient(135deg, rgba(255, 166, 0, 0.95), rgba(255, 132, 0, 0.78)); }
         .theme-mkt { background: linear-gradient(135deg, rgba(255, 72, 133, 0.92), rgba(255, 48, 92, 0.72)); }
-        
+
         .theme-doge { background: linear-gradient(135deg, rgba(248, 203, 70, 0.95), rgba(238, 166, 0, 0.78)); }
 
         
@@ -1967,8 +1967,8 @@
 
                     const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
                     if (isLocal) {
-                        const response = await fetch('./signal_data.json');
-                        json = await response.json();
+                    const response = await fetch('./signal_data.json');
+                    json = await response.json();
                     } else {
                         throw apiErr || new Error('history_api_unavailable');
                     }
