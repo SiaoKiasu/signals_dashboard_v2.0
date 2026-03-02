@@ -8,7 +8,7 @@ const { getMongoDb } = require("../_lib/mongo");
 
 const CUTOFF = new Date("2022-11-11T00:00:00Z");
 const FORCE_SIGNAL2_TO_5 = new Set(["2026-02-18", "2025-11-17", "2025-03-06"]);
-const ALL_SIGNALS = ["signal2", "signal7", "signal9", "signal18"];
+const ALL_SIGNALS = ["signal1", "signal2", "signal7", "signal9", "signal13", "signal15", "signal18"];
 const HISTORY_COLLECTION = process.env.MONGODB_HISTORY_COLLECTION || "portal_data";
 const HISTORY_DOC_ID = process.env.MONGODB_HISTORY_DOC_ID || "signal_history";
 
@@ -52,7 +52,7 @@ async function loadSignalData() {
 
 function pickAllowedSignals(tier) {
   if (tier === "basic") return [];
-  if (tier === "pro") return ["signal2"];
+  if (tier === "pro") return ["signal1", "signal2", "signal13", "signal15"];
   if (tier === "ultra") return ALL_SIGNALS.slice();
   return [];
 }
