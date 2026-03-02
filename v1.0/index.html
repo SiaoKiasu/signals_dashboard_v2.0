@@ -2306,6 +2306,8 @@
                 renderAuthedBox();
                 authRemainTimer = setInterval(renderAuthedBox, 60 * 1000);
                 applyPortalAccess();
+                loadMarketCharts();
+                loadMarketSnapshotLive();
             } catch (e) {
                 authSnapshot = null;
                 el.innerHTML = '';
