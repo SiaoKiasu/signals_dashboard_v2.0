@@ -84,6 +84,27 @@
             margin-top: 12px;
             color: #cfe0ff;
         }
+        .guide-tabs {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .guide-tab-btn {
+            border: 1px solid #2a2e39;
+            background: rgba(21, 25, 36, 0.9);
+            color: #d1d4dc;
+            padding: 6px 12px;
+            border-radius: 10px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .guide-tab-btn.active {
+            border-color: rgba(41,98,255,0.5);
+            color: #cfe0ff;
+            background: rgba(41,98,255,0.18);
+        }
+        .guide-panel { display: none; }
+        .guide-panel.active { display: block; }
         a { color: #cfe0ff; }
     </style>
 </head>
@@ -91,8 +112,12 @@
     <div class="container">
         <h1>会员升级指南</h1>
         <div class="muted">适用于 Portal 内的会员开通或升级流程。</div>
+        <div class="guide-tabs">
+            <button class="guide-tab-btn active" data-tab="binance">币安 Binance</button>
+            <button class="guide-tab-btn" data-tab="okx">OKX</button>
+        </div>
 
-        <div class="card">
+        <div class="card guide-panel active" data-panel="binance">
             <h1>币安 Binance 操作方法</h1>
             <h2>步骤 1：打开币安钱包</h2>
             <div class="step">
@@ -121,7 +146,7 @@
                 </div>
             </div>
 
-            <h2>步骤 4：重新点击 USDT 资产，在历史记录点击刚才的那笔提现</h2>
+            <h2>步骤 4：在现货钱包页面重新点击 USDT 资产，在历史记录点击刚才的那笔提现</h2>
             <div class="step">
                 <div class="step-index">4</div>
                 <div>
@@ -134,8 +159,59 @@
             <div class="step">
                 <div class="step-index">4</div>
                 <div>
-                    提现详情中找到交易哈希，复制，粘贴到 portal输入框。
                     <img src="./upgrade_guide/bn5.jpg" alt="步骤5截图" class="guide-img">
+                </div>
+            </div>
+
+        </div>
+
+        <div class="card guide-panel" data-panel="okx">
+            <h1>OKX 操作方法</h1>
+            <h2>步骤 1：打开 OKX 钱包</h2>
+            <div class="step">
+                <div class="step-index">1</div>
+                <div>
+                    点击 USDT 资产。
+                    <img src="./upgrade_guide/okx1.jpg" alt="步骤1截图" class="guide-img">
+                </div>
+            </div>
+
+            <h2>步骤 2：点击提币</h2>
+            <div class="step">
+                <div class="step-index">2</div>
+                <div>
+                    点击提取数字货币，选择收款人选非托管钱包。
+                    <img src="./upgrade_guide/okx2.jpg" alt="步骤2截图" class="guide-img">
+                </div>
+            </div>
+
+            <h2>步骤 3：网络选择 Ethereum</h2>
+            <div class="step">
+                <div class="step-index">3</div>
+                <div>
+                    把 portal 上的地址复制到输入框，提币数量 168.1(pro)、388.1(ultra)，确认信息后提现。
+                    <img src="./upgrade_guide/okx3.jpg" alt="步骤3截图" class="guide-img">
+                </div>
+            </div>
+
+            <h2>步骤 4： 在钱包页面重新点击 USDT 资产，在历史记录点击刚才的那笔提现</h2>
+            <div class="step">
+                <div class="step-index">4</div>
+                <div>
+                    提现详情中找到交易哈希，复制，粘贴到 portal输入框。
+<<<<<<< HEAD
+                    <img src="./upgrade_guide/bn5.jpg" alt="步骤5截图" class="guide-img">
+=======
+                    <img src="./upgrade_guide/okx4.jpg" alt="步骤4截图" class="guide-img">
+                </div>
+            </div>
+
+            <h2>步骤 5：等到 OKX 提醒提现成功后，在 portal 上点击提交按钮，就能够完成会员开通了</h2>
+            <div class="step">
+                <div class="step-index">5</div>
+                <div>
+                    <img src="./upgrade_guide/okx5.jpg" alt="步骤5截图" class="guide-img">
+>>>>>>> 8496f37 (release v2.2.7)
                 </div>
             </div>
 
@@ -152,5 +228,16 @@
             </div>
         </div>
     </div>
+    <script>
+        const tabButtons = Array.from(document.querySelectorAll('.guide-tab-btn'));
+        const panels = Array.from(document.querySelectorAll('.guide-panel'));
+        tabButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const target = btn.dataset.tab;
+                tabButtons.forEach(b => b.classList.toggle('active', b === btn));
+                panels.forEach(p => p.classList.toggle('active', p.dataset.panel === target));
+            });
+        });
+    </script>
 </body>
 </html>
