@@ -1,0 +1,11 @@
+# 本地测试和配置文件，不同步到 git
+v1.0/signal_data.json
+v1.0/discord_template.py
+v1.0/test.py
+v1.0/discord_notification.ipynb
+v1.0/update_signals.py
+v1.0/fetch_funding_history.py
+v1.0/fetch_oi_history.py
+v1.0/fetch_etf_flow_history.py
+v1.0/fetch_liquidation_history.py
+v1.0/fetch_exchange_balance.py
