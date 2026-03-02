@@ -53,6 +53,7 @@
             border-radius: 12px;
             box-shadow: 0 14px 34px rgba(0,0,0,0.42);
             overflow: hidden;
+            position: relative;
         }
 
         .portal-card-inner {
@@ -605,6 +606,39 @@
             font-size: 14px;
             line-height: 1.6;
         }
+        .portal-lock-mask {
+            position: absolute;
+            inset: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 24px;
+            background: rgba(7, 10, 16, 0.72);
+            backdrop-filter: blur(2px);
+            color: #d1d4dc;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .portal-lock-mask a {
+            color: #cfe0ff;
+            text-decoration: none;
+            font-weight: 700;
+        }
+        .portal-lock-mask .lock-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(41,98,255,0.5);
+            background: rgba(41,98,255,0.18);
+            color: #cfe0ff;
+            margin-top: 10px;
+            cursor: pointer;
+            font-size: 12px;
+        }
 
         
         .custom-tooltip {
@@ -651,7 +685,7 @@
 
     <div class="portal">
         
-        <div class="portal-card">
+        <div class="portal-card" id="portal-market-card">
             <div class="portal-card-inner">
                 <div class="portal-card-title">
                     <div class="t1" id="market-title">Market Snapshot</div>
@@ -671,7 +705,7 @@
         </div>
 
         
-        <div class="portal-card">
+        <div class="portal-card" id="portal-indicators-card">
             <div class="portal-card-inner">
                 <div class="portal-card-title">
                     <div class="t1" id="indicators-title">Market Indicators</div>
@@ -697,7 +731,7 @@
             </div>
         </div>
 
-        <div class="portal-card">
+        <div class="portal-card" id="portal-signals-card">
             <div class="portal-card-inner">
                 <div class="signals-topbar">
                     <div class="portal-card-title" style="margin-bottom:0;">
@@ -711,7 +745,7 @@
             </div>
         </div>
 
-        <div class="portal-card">
+        <div class="portal-card" id="portal-whales-card">
             <div class="portal-card-inner">
                 <div class="portal-card-title">
                     <div class="t1" id="whales-title">Hyperliquid Whales Monitor</div>
@@ -862,6 +896,10 @@
                 asset_btc: 'Bitcoin',
                 asset_eth: 'Ethereum',
                 asset_usdc: 'USDC',
+                portal_lock_login: 'Please login with Discord to view this section.',
+                portal_lock_login_btn: 'Login with Discord',
+                portal_lock_pro: 'This section is available for PRO or above members only.',
+                portal_lock_upgrade_btn: 'Upgrade to PRO',
             },
             zh: {
                 lang_toggle: 'EN',
@@ -948,6 +986,10 @@
                 asset_btc: 'BTC',
                 asset_eth: 'ETH',
                 asset_usdc: 'USDC',
+                portal_lock_login: '请使用 Discord 登录后查看该内容。',
+                portal_lock_login_btn: '使用 Discord 登录',
+                portal_lock_pro: '该内容仅对 PRO 及以上会员开放。',
+                portal_lock_upgrade_btn: '升级到 PRO',
             }
         };
         const savedLang = localStorage.getItem('portal_lang');
@@ -1508,6 +1550,10 @@
 
         async function loadMarketCharts() {
             try {
+                const tier = getUserTier();
+                if (!canViewMarket(tier)) {
+                    return;
+                }
                 const payload = await fetchJson('/api/market/summary');
                 marketPayloadCache = payload;
                 const etfSelect = document.getElementById('etf-symbol-select');
@@ -1520,12 +1566,14 @@
                 const fear = payload.fearGreed || { dates: [], values: [], prices: [] };
                 const oiPrice = alignSeries(oi.dates || [], exb.dates || [], exb.prices || []);
                 const fundingPrice = alignSeries(funding.dates || [], exb.dates || [], exb.prices || []);
-                renderOiChart(oi, oiPrice);
-                renderFundingChart(funding, fundingPrice);
-                renderLiquidationChart(payload.liquidation || { exchanges: [], long: [], short: [] });
-                renderEtfChart(etf, etfSymbol);
-                renderExchangeBalanceChart(exb);
-                renderFearGreedChart(fear);
+                if (canViewProContent(tier)) {
+                    renderOiChart(oi, oiPrice);
+                    renderFundingChart(funding, fundingPrice);
+                    renderLiquidationChart(payload.liquidation || { exchanges: [], long: [], short: [] });
+                    renderEtfChart(etf, etfSymbol);
+                    renderExchangeBalanceChart(exb);
+                    renderFearGreedChart(fear);
+                }
                 if (payload.prices) updateMarketCards(payload.prices);
                 updateMarketMetrics(payload);
                 renderMarketSnapshot();
@@ -1587,6 +1635,8 @@
 
         async function loadMarketSnapshotLive() {
             try {
+                const tier = getUserTier();
+                if (!canViewMarket(tier)) return;
                 const payload = await fetchJson('/api/market/summary?scope=prices');
                 const prices = payload && payload.prices ? payload.prices : {};
                 updateMarketCards(prices);
@@ -1633,6 +1683,66 @@
 
         function requiredTierForSignal(signalKey) {
             return SIGNAL_REQUIRED_TIER[signalKey] || 'ultra';
+        }
+
+        function getUserTier() {
+            if (!authSnapshot || !authSnapshot.authenticated) return 'guest';
+            return String(authSnapshot.tier || 'basic').toLowerCase();
+        }
+
+        function canViewMarket(tier) {
+            return tier !== 'guest';
+        }
+
+        function canViewProContent(tier) {
+            return tier === 'pro' || tier === 'ultra';
+        }
+
+        function setPortalCardLock(cardId, show, html) {
+            const card = document.getElementById(cardId);
+            if (!card) return;
+            let mask = card.querySelector('.portal-lock-mask');
+            if (!show) {
+                if (mask) mask.remove();
+                return;
+            }
+            if (!mask) {
+                mask = document.createElement('div');
+                mask.className = 'portal-lock-mask';
+                card.appendChild(mask);
+            }
+            mask.innerHTML = html;
+            const upgradeBtn = mask.querySelector('[data-action="upgrade"]');
+            if (upgradeBtn) {
+                upgradeBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    openUpgradeModal();
+                };
+            }
+        }
+
+        function applyPortalAccess() {
+            const tier = getUserTier();
+            const allowMarket = canViewMarket(tier);
+            const allowPro = canViewProContent(tier);
+
+            const loginHtml = `
+                <div>
+                    <div>${t('portal_lock_login')}</div>
+                    <a class="lock-btn" href="/api/auth/discord">${t('portal_lock_login_btn')}</a>
+                </div>
+            `;
+            const proHtml = `
+                <div>
+                    <div>${t('portal_lock_pro')}</div>
+                    <button class="lock-btn" data-action="upgrade">${t('portal_lock_upgrade_btn')}</button>
+                </div>
+            `;
+
+            setPortalCardLock('portal-market-card', !allowMarket, loginHtml);
+            setPortalCardLock('portal-indicators-card', !allowPro, allowMarket ? proHtml : loginHtml);
+            setPortalCardLock('portal-signals-card', !allowPro, allowMarket ? proHtml : loginHtml);
+            setPortalCardLock('portal-whales-card', !allowPro, allowMarket ? proHtml : loginHtml);
         }
 
         function showChartLockMask(requiredTier) {
@@ -1950,8 +2060,10 @@
                 try {
                     const r = await fetch('/api/portal/history', { credentials: 'include' });
                     if (r.status === 401) {
+                        authSnapshot = null;
+                        applyPortalAccess();
                         renderAuth();
-                        throw new Error('UNAUTHORIZED');
+                        return;
                     }
                     if (r.ok) {
                         json = await r.json();
@@ -2002,17 +2114,13 @@
                 
                 initButtons();
                 renderChart(availableSignals[0] || ALL_SIGNALS[0]);
-
                 renderMarketSnapshot();
-
+                applyPortalAccess();
                 renderAuth();
             } catch (err) {
                 console.error("数据加载失败:", err);
+                applyPortalAccess();
                 renderAuth();
-                document.getElementById('chart-container').innerHTML = 
-                    `<div style="color:#f23645; text-align:center; margin-top:20%; font-size:14px;">
-                        ${currentLang === 'zh' ? '数据加载失败：请登录您的 discord 账号； 如果登录后仍然无法加载，请联系管理员。' : 'Failed to load data. Please login with Discord. If it still fails, contact support.'}
-                    </div>`;
             }
         }
 
@@ -2191,14 +2299,17 @@
                             ${t('login')}
                         </button>
                     </a>`;
+                    applyPortalAccess();
                     return;
                 }
                 authSnapshot = j;
                 renderAuthedBox();
                 authRemainTimer = setInterval(renderAuthedBox, 60 * 1000);
+                applyPortalAccess();
             } catch (e) {
                 authSnapshot = null;
                 el.innerHTML = '';
+                applyPortalAccess();
             }
         }
 
