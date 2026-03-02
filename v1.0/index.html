@@ -190,7 +190,7 @@
         .theme-usd { background: linear-gradient(135deg, rgba(255, 166, 0, 0.95), rgba(255, 132, 0, 0.78)); }
         .theme-mkt { background: linear-gradient(135deg, rgba(255, 72, 133, 0.92), rgba(255, 48, 92, 0.72)); }
 
-        .theme-doge { background: linear-gradient(135deg, rgba(248, 203, 70, 0.95), rgba(238, 166, 0, 0.78)); }
+        .theme-usdc { background: linear-gradient(135deg, rgba(37, 99, 235, 0.95), rgba(29, 78, 216, 0.78)); }
 
         
         .metrics-panel {
@@ -861,7 +861,7 @@
                 metric_fear_sub: 'Market sentiment',
                 asset_btc: 'Bitcoin',
                 asset_eth: 'Ethereum',
-                asset_doge: 'Dogecoin',
+                asset_usdc: 'USDC',
             },
             zh: {
                 lang_toggle: 'EN',
@@ -947,7 +947,7 @@
                 metric_fear_sub: '市场恐慌与贪婪的情绪指标',
                 asset_btc: '比特币',
                 asset_eth: '以太坊',
-                asset_doge: '狗狗币',
+                asset_usdc: 'USDC',
             }
         };
         const savedLang = localStorage.getItem('portal_lang');
@@ -1155,11 +1155,11 @@
         function updateMarketCards(prices) {
             const btc = Number.isFinite(prices.btc) ? prices.btc : null;
             const eth = Number.isFinite(prices.eth) ? prices.eth : null;
-            const doge = Number.isFinite(prices.doge) ? prices.doge : null;
+            const usdc = Number.isFinite(prices.usdc) ? prices.usdc : null;
             window.PORTAL_MARKET_CARDS = [
                 { symbol: 'BTC', name: t('asset_btc'), icon: '฿', theme: 'theme-btc', priceText: btc != null ? `$${formatPrice(btc)}` : '-', dominanceLabel: t('source'), dominanceText: 'CoinGecko' },
                 { symbol: 'ETH', name: t('asset_eth'), icon: 'Ξ', theme: 'theme-eth', priceText: eth != null ? `$${formatPrice(eth)}` : '-', dominanceLabel: t('source'), dominanceText: 'CoinGecko' },
-                { symbol: 'DOGE', name: t('asset_doge'), icon: 'Ð', theme: 'theme-doge', priceText: doge != null ? `$${Number(doge).toFixed(4)}` : '-', dominanceLabel: t('source'), dominanceText: 'CoinGecko' },
+                { symbol: 'USDC', name: t('asset_usdc'), icon: '$', theme: 'theme-usdc', priceText: usdc != null ? `$${Number(usdc).toFixed(4)}` : '-', dominanceLabel: t('source'), dominanceText: 'CoinGecko' },
             ];
         }
 
@@ -2248,7 +2248,7 @@
         window.PORTAL_MARKET_CARDS = [
             { symbol: 'BTC', name: 'Bitcoin', icon: '฿', theme: 'theme-btc', priceText: '$68,192', dominanceLabel: 'Source', dominanceText: 'CoinGecko' },
             { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', theme: 'theme-eth', priceText: '$2,064', dominanceLabel: 'Source', dominanceText: 'CoinGecko' },
-            { symbol: 'DOGE', name: 'Dogecoin', icon: 'Ð', theme: 'theme-doge', priceText: '$0.0821', dominanceLabel: 'Source', dominanceText: 'CoinGecko' },
+            { symbol: 'USDC', name: 'USD Coin', icon: '$', theme: 'theme-usdc', priceText: '$1.0000', dominanceLabel: 'Source', dominanceText: 'CoinGecko' },
         ];
 
         window.PORTAL_MARKET_METRICS = [

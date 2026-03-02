@@ -36,7 +36,7 @@ let cachedPricesAt = 0;
 async function getPrices() {
   try {
     const url =
-      "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,dogecoin&vs_currencies=usd";
+      "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,usd-coin&vs_currencies=usd";
     const r = await fetch(url);
     if (!r.ok) {
       const t = await r.text();
@@ -46,9 +46,9 @@ async function getPrices() {
     const out = {
       btc: Number(j.bitcoin && j.bitcoin.usd),
       eth: Number(j.ethereum && j.ethereum.usd),
-      doge: Number(j.dogecoin && j.dogecoin.usd),
+      usdc: Number(j["usd-coin"] && j["usd-coin"].usd),
     };
-    if (Number.isFinite(out.btc) || Number.isFinite(out.eth) || Number.isFinite(out.doge)) {
+    if (Number.isFinite(out.btc) || Number.isFinite(out.eth) || Number.isFinite(out.usdc)) {
       cachedPrices = out;
       cachedPricesAt = Date.now();
     }
@@ -57,7 +57,7 @@ async function getPrices() {
     if (cachedPrices && Date.now() - cachedPricesAt < 2 * 60 * 1000) {
       return cachedPrices;
     }
-    return { btc: null, eth: null, doge: null };
+    return { btc: null, eth: null, usdc: null };
   }
 }
 
@@ -259,7 +259,7 @@ module.exports = async (req, res) => {
 
     if (scope === "prices") {
       const [pricesRes, premiumRes] = await Promise.allSettled([getPrices(), getCoinbasePremium(key)]);
-      const prices = pricesRes.status === "fulfilled" ? pricesRes.value : { btc: null, eth: null, doge: null };
+      const prices = pricesRes.status === "fulfilled" ? pricesRes.value : { btc: null, eth: null, usdc: null };
       const premium = premiumRes.status === "fulfilled" ? premiumRes.value : { premium_rate: null };
       sendJson(res, 200, { prices, premium });
       return;
