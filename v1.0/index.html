@@ -507,6 +507,26 @@
             font-weight: 700;
             font-size: 16px;
             margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .upgrade-guide-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 1px solid #2a2e39;
+            color: #d1d4dc;
+            font-size: 12px;
+            text-decoration: none;
+            background: rgba(21, 25, 36, 0.9);
+        }
+        .upgrade-guide-link:hover {
+            color: #cfe0ff;
+            border-color: rgba(41,98,255,0.5);
         }
         .upgrade-row {
             display: flex;
@@ -762,7 +782,10 @@
 
     <div id="upgrade-modal" class="upgrade-modal">
         <div class="upgrade-card">
-            <div class="upgrade-title" id="upgrade-title">Upgrade Plan</div>
+            <div class="upgrade-title">
+                <span id="upgrade-title">Upgrade Plan</span>
+                <a id="upgrade-guide-link" class="upgrade-guide-link" href="/v1.0/upgrade_guide.html" target="_blank" rel="noopener">?</a>
+            </div>
             <div class="upgrade-row">
                 <label id="upgrade-label-plan">Plan</label>
                 <select id="upgrade-plan">
@@ -777,10 +800,10 @@
             <div class="upgrade-row">
                 <label id="upgrade-label-network">Network</label>
                 <select id="upgrade-network">
-                    <option value="ethereum">Ethereum</option>
-                    <option value="bnb">BNB</option>
-                    <option value="arbitrum">Arbitrum</option>
-                    <option value="solana">Solana</option>
+                    <option id="upgrade-network-eth" value="ethereum" style="color:#f8cb46;">Ethereum (Recommended)</option>
+                    <option id="upgrade-network-bnb" value="bnb">BNB</option>
+                    <option id="upgrade-network-arb" value="arbitrum">Arbitrum</option>
+                    <option id="upgrade-network-sol" value="solana">Solana</option>
                 </select>
             </div>
             <div class="upgrade-row" style="align-items:flex-start;">
@@ -850,6 +873,11 @@
                 upgrade_btn: 'Upgrade Plan',
                 source: 'Source',
                 recommended: 'Recommended',
+                network_eth: 'Ethereum',
+                network_bnb: 'BNB',
+                network_arbitrum: 'Arbitrum',
+                network_solana: 'Solana',
+                upgrade_guide_title: 'Membership Upgrade Guide',
                 contact_support: 'Contact support',
                 cat_crash_title: 'Signal SHORT',
                 cat_crash_desc: 'Downward signal for potential short setups.',
@@ -940,6 +968,11 @@
                 upgrade_btn: '升级会员',
                 source: '来源',
                 recommended: '推荐',
+                network_eth: 'Ethereum',
+                network_bnb: 'BNB',
+                network_arbitrum: 'Arbitrum',
+                network_solana: 'Solana',
+                upgrade_guide_title: '会员升级指南',
                 contact_support: '请联系管理员',
                 cat_crash_title: '大跌信号',
                 cat_crash_desc: '触发后至少伴随 5% 以上的跌幅，可直接做空。',
@@ -1030,6 +1063,12 @@
             setText('upgrade-label-address', t('label_address'));
             setText('upgrade-label-hash', t('label_hash'));
             setText('upgrade-hint', t('upgrade_hint'));
+            setText('upgrade-network-eth', `${t('network_eth')} (${t('recommended')})`);
+            setText('upgrade-network-bnb', t('network_bnb'));
+            setText('upgrade-network-arb', t('network_arbitrum'));
+            setText('upgrade-network-sol', t('network_solana'));
+            const guideLink = document.getElementById('upgrade-guide-link');
+            if (guideLink) guideLink.title = t('upgrade_guide_title');
             const hashInput = document.getElementById('upgrade-hash');
             if (hashInput) hashInput.placeholder = t('hash_placeholder');
             const submitBtn = document.getElementById('upgrade-submit');
@@ -2162,7 +2201,7 @@
                 const chain = netEl.value;
                 const addr = (config && config.addresses && config.addresses[chain]) || UPGRADE_ADDRESSES[chain] || '-';
                 addressEl.textContent = addr;
-                recommendEl.textContent = chain === 'ethereum' ? t('recommended') : '';
+                if (recommendEl) recommendEl.textContent = '';
             };
             if (netEl) {
                 netEl.onchange = renderAddress;

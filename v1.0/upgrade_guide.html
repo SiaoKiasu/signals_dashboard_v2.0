@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>会员升级指南</title>
+    <style>
+        :root {
+            --bg: #0f141f;
+            --card: #151924;
+            --text: #d1d4dc;
+            --muted: #8b94a7;
+            --accent: #2962ff;
+            --border: #2a2e39;
+        }
+        body {
+            margin: 0;
+            padding: 24px;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Trebuchet MS", Roboto, Ubuntu, sans-serif;
+            line-height: 1.7;
+        }
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-size: 22px;
+            margin-bottom: 6px;
+        }
+        h2 {
+            font-size: 16px;
+            margin-top: 20px;
+            margin-bottom: 8px;
+        }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+        .muted { color: var(--muted); }
+        .step {
+            display: flex;
+            gap: 12px;
+            margin: 12px 0;
+        }
+        .step-index {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: rgba(41,98,255,0.18);
+            border: 1px solid rgba(41,98,255,0.5);
+            color: #cfe0ff;
+            font-size: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .img-placeholder {
+            border: 1px dashed var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            text-align: center;
+            color: var(--muted);
+            margin: 8px 0 0 0;
+        }
+        .note {
+            background: rgba(41,98,255,0.1);
+            border: 1px solid rgba(41,98,255,0.25);
+            padding: 10px 12px;
+            border-radius: 10px;
+            margin-top: 12px;
+            color: #cfe0ff;
+        }
+        a { color: #cfe0ff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>会员升级指南</h1>
+        <div class="muted">适用于 Portal 内的会员升级流程（可自行替换为图文说明）。</div>
+
+        <div class="card">
+            <h2>步骤 1：打开升级面板</h2>
+            <div class="step">
+                <div class="step-index">1</div>
+                <div>
+                    点击右上角账号菜单里的“升级会员”按钮，弹出升级面板。
+                    <div class="img-placeholder">（这里放截图：右上角菜单 + 升级按钮）</div>
+                </div>
+            </div>
+
+            <h2>步骤 2：选择会员等级与网络</h2>
+            <div class="step">
+                <div class="step-index">2</div>
+                <div>
+                    选择 <b>Pro</b> 或 <b>Ultra</b>，推荐使用 <b>Ethereum</b> 网络（标注为“推荐”）。
+                    <div class="img-placeholder">（这里放截图：Plan / Network 选择区域）</div>
+                </div>
+            </div>
+
+            <h2>步骤 3：转账并复制交易 Hash</h2>
+            <div class="step">
+                <div class="step-index">3</div>
+                <div>
+                    使用钱包向指定地址转账对应金额，完成后复制交易 Hash。
+                    <div class="img-placeholder">（这里放截图：钱包转账界面 + 交易哈希）</div>
+                </div>
+            </div>
+
+            <h2>步骤 4：提交验证</h2>
+            <div class="step">
+                <div class="step-index">4</div>
+                <div>
+                    在输入框粘贴交易 Hash，点击“提交”，等待验证完成。
+                    <div class="img-placeholder">（这里放截图：Tx Hash 输入框 + 提交按钮）</div>
+                </div>
+            </div>
+
+            <div class="note">
+                注意：Solana 暂不支持，请勿在 Solana 网络充值。
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>常见问题</h2>
+            <div class="step">
+                <div class="step-index">Q</div>
+                <div>
+                    <b>验证失败怎么办？</b><br>
+                    请确认交易 Hash 正确且转账网络与选择的网络一致。如仍失败，请联系管理员。
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
