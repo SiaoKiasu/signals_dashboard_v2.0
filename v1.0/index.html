@@ -818,7 +818,10 @@
                 <input id="upgrade-hash" placeholder="Please paste transaction hash" />
             </div>
             <div class="upgrade-row">
-                <label id="upgrade-label-referrer">Referrer</label>
+                <label id="upgrade-label-referrer-wrap">
+                    <span id="upgrade-label-referrer">Referrer</span>
+                    <span id="upgrade-referrer-tip" style="display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; border:1px solid #4a4f5d; border-radius:50%; font-size:10px; color:#9aa3b2; margin-left:6px; cursor:help;">?</span>
+                </label>
                 <input id="upgrade-referrer" placeholder="Enter referrer Discord ID or name" />
             </div>
             <div id="upgrade-referrer-status" class="upgrade-recommend" style="margin-top:-6px;"></div>
@@ -1088,6 +1091,8 @@
             setText('upgrade-label-address', t('label_address'));
             setText('upgrade-label-hash', t('label_hash'));
             setText('upgrade-label-referrer', t('label_referrer'));
+            const referrerTip = document.getElementById('upgrade-referrer-tip');
+            if (referrerTip) referrerTip.title = t('status_referrer_locked');
             setText('upgrade-hint', t('upgrade_hint'));
             setText('upgrade-network-eth', `${t('network_eth')} (${t('recommended')})`);
             setText('upgrade-network-bnb', t('network_bnb'));
@@ -2372,10 +2377,7 @@
                     renderReferrerStatus(null);
                 };
                 referrerEl.onblur = async () => {
-                    if (!upgradeCanUseReferrer) {
-                        renderReferrerStatus({ ok: false, error: 'referrer_not_allowed_after_first_payment' });
-                        return;
-                    }
+                    if (!upgradeCanUseReferrer) return;
                     const result = await validateReferrerInput(referrerEl.value);
                     upgradeResolvedReferrer = result.ok ? result.referrer : null;
                     renderReferrerStatus(result);
@@ -2387,7 +2389,7 @@
             if (hashEl) hashEl.value = '';
             if (referrerEl) referrerEl.value = '';
             upgradeResolvedReferrer = null;
-            renderReferrerStatus(upgradeCanUseReferrer ? null : { ok: false, error: 'referrer_not_allowed_after_first_payment' });
+            renderReferrerStatus(null);
             if (!targetPlan) {
                 if (statusEl) statusEl.style.display = 'flex';
                 if (statusText) {
