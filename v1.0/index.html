@@ -906,6 +906,7 @@
                 status_referrer_invalid: 'Referrer not found',
                 status_referrer_self: 'Referrer cannot be yourself',
                 status_referrer_locked: 'Referrer can only be used on first payment',
+                referrer_tip_text: 'Referrer can only be used on first payment. Fill referrer for +5 days membership time, and referrer gets +10 days.',
                 status_verify_failed: 'Verification failed. Please retry',
                 status_verify_ok: 'Verified. Membership updated',
                 status_network: 'Network error. Please retry',
@@ -1012,6 +1013,7 @@
                 status_referrer_invalid: '推荐人不存在',
                 status_referrer_self: '推荐人不能是自己',
                 status_referrer_locked: '推荐人仅首充可用',
+                referrer_tip_text: '推荐人仅首充可用。填写推荐人额外赠送 5 天会员时间，推荐人赠送 10 天会员时间。',
                 status_verify_failed: '验证失败，请重试',
                 status_verify_ok: '充值验证成功，会员已更新',
                 status_network: '网络异常，请重试',
@@ -1119,7 +1121,7 @@
             setText('upgrade-label-address', t('label_address'));
             setText('upgrade-label-hash', t('label_hash'));
             setText('upgrade-label-referrer', t('label_referrer'));
-            setText('upgrade-referrer-tip-text', t('status_referrer_locked'));
+            setText('upgrade-referrer-tip-text', t('referrer_tip_text'));
             setText('upgrade-referrer-bonus', t('referrer_bonus_text'));
             setText('upgrade-network-eth', `${t('network_eth')} (${t('recommended')})`);
             setText('upgrade-network-bnb', t('network_bnb'));
