@@ -2169,6 +2169,24 @@
             solana: '8SWpuC45pvVmGGudGcMmdHGtyPqcPJZytQ5fH6tWVhvH',
             arbitrum: '0x70FBd71c755aE9355f76ff88FF5b74B2a51889D7',
         };
+        let upgradeOrderToken = '';
+        let upgradeOrderPlan = '';
+        let upgradeOrderNetwork = '';
+        async function createPaymentOrder(plan, network) {
+            const r = await fetch('/api/payments/create-order', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ plan, network }),
+            });
+            const j = await r.json();
+            if (!r.ok || !j.ok || !j.order_token) {
+                throw new Error((j && j.error) ? j.error : 'create_order_failed');
+            }
+            upgradeOrderToken = j.order_token;
+            upgradeOrderPlan = plan;
+            upgradeOrderNetwork = network;
+        }
         async function fetchPricing() {
             try {
                 const r = await fetch('/api/payments/config', { credentials: 'include' });
@@ -2188,6 +2206,7 @@
             const planEl = document.getElementById('upgrade-plan');
             const priceEl = document.getElementById('upgrade-price');
             const statusEl = document.getElementById('upgrade-status');
+            const statusText = document.getElementById('upgrade-status-text');
             const hashEl = document.getElementById('upgrade-hash');
             const config = await fetchPricing();
             const renderPrice = () => {
@@ -2203,20 +2222,49 @@
                 addressEl.textContent = addr;
                 if (recommendEl) recommendEl.textContent = '';
             };
+            const ensureOrderToken = async () => {
+                if (!planEl || !netEl || !statusEl || !statusText) return;
+                const plan = planEl.value;
+                const network = netEl.value;
+                if (network === 'solana') {
+                    upgradeOrderToken = '';
+                    upgradeOrderPlan = '';
+                    upgradeOrderNetwork = '';
+                    return;
+                }
+                statusEl.style.display = 'flex';
+                statusText.textContent = t('status_processing');
+                try {
+                    await createPaymentOrder(plan, network);
+                    statusEl.style.display = 'none';
+                } catch (e) {
+                    statusText.textContent = t('status_verify_failed');
+                }
+            };
             if (netEl) {
-                netEl.onchange = renderAddress;
+                netEl.onchange = async () => {
+                    renderAddress();
+                    await ensureOrderToken();
+                };
             }
             if (planEl) {
-                planEl.onchange = renderPrice;
+                planEl.onchange = async () => {
+                    renderPrice();
+                    await ensureOrderToken();
+                };
             }
             renderPrice();
             renderAddress();
             if (statusEl) statusEl.style.display = 'none';
             if (hashEl) hashEl.value = '';
+            await ensureOrderToken();
         }
         function closeUpgradeModal() {
             const modal = document.getElementById('upgrade-modal');
             if (modal) modal.style.display = 'none';
+            upgradeOrderToken = '';
+            upgradeOrderPlan = '';
+            upgradeOrderNetwork = '';
         }
         async function submitUpgrade() {
             const planEl = document.getElementById('upgrade-plan');
@@ -2240,11 +2288,19 @@
             statusEl.style.display = 'flex';
             if (statusText) statusText.textContent = t('status_processing');
             try {
+                if (!upgradeOrderToken || upgradeOrderPlan !== planEl.value || upgradeOrderNetwork !== chain) {
+                    await createPaymentOrder(planEl.value, chain);
+                }
                 const r = await fetch('/api/payments/verify', {
                     method: 'POST',
                     headers: { 'content-type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ plan: planEl.value, network: chain, tx_hash: txHash }),
+                    body: JSON.stringify({
+                        plan: planEl.value,
+                        network: chain,
+                        tx_hash: txHash,
+                        order_token: upgradeOrderToken,
+                    }),
                 });
                 const j = await r.json();
                 if (!r.ok || !j.ok) {
@@ -2255,6 +2311,9 @@
                     return;
                 }
                 if (statusText) statusText.textContent = t('status_verify_ok');
+                upgradeOrderToken = '';
+                upgradeOrderPlan = '';
+                upgradeOrderNetwork = '';
                 closeUpgradeModal();
                 renderAuth();
             } catch (e) {

@@ -142,11 +142,8 @@ async function applyMembershipChange(discord_user_id, input) {
     (await db.collection(MEMBERS_COLLECTION).findOne({ discord_user_id: id }));
   const firstOpenedAt = existing && existing.first_opened_at ? existing.first_opened_at : nowIso;
   const existingExpMs = Date.parse(String(existing && existing.expires_at ? existing.expires_at : ""));
-  const baseMs = isUpgrade
-    ? now
-    : Number.isFinite(existingExpMs) && existingExpMs > now
-      ? existingExpMs
-      : now;
+  // 无论是否 upgrade，都应该从“当前未过期的到期时间”继续续费，避免吞掉剩余时间
+  const baseMs = Number.isFinite(existingExpMs) && existingExpMs > now ? existingExpMs : now;
   const newExpMs = baseMs + dur.ms;
   const expiresAt = new Date(newExpMs).toISOString();
 

@@ -5,6 +5,15 @@ const { getTier, applyMembershipChange } = require("../_lib/tiers");
 
 const MEMBERS_COLLECTION = process.env.MONGODB_MEMBERS_COLLECTION || "members";
 const CONFIG_COLLECTION = process.env.MONGODB_CONFIG_COLLECTION || "config";
+const PAYMENTS_COLLECTION = process.env.MONGODB_PAYMENTS_COLLECTION || "payments";
+const PAYMENT_ORDERS_COLLECTION = process.env.MONGODB_PAYMENT_ORDERS_COLLECTION || "payment_orders";
+
+// 会员时长计算
+// - 统一按 31 天一个“月”
+// - 允许小额差价（例如 168 的价格，充值到 167.5 也按足额 31 天给满）
+const MEMBERSHIP_MONTH_DAYS = 31;
+const MEMBERSHIP_MONTH_MINUTES = MEMBERSHIP_MONTH_DAYS * 24 * 60;
+const MEMBERSHIP_PRICE_SHORTFALL_ALLOW_USD = 0.6;
 
 const ADDRESSES = {
   ethereum: "0x70FBd71c755aE9355f76ff88FF5b74B2a51889D7",
@@ -130,6 +139,103 @@ async function getPricing(db) {
   return { pro_month_usd, ultra_month_usd };
 }
 
+function parseIsoMs(v) {
+  const ms = Date.parse(String(v || ""));
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function buildPaymentId(network, txHash) {
+  return `${String(network || "").trim().toLowerCase()}:${String(txHash || "").trim().toLowerCase()}`;
+}
+
+async function getOrderForVerify(db, { orderToken, discordUserId, plan, network }) {
+  const order = await db.collection(PAYMENT_ORDERS_COLLECTION).findOne({ _id: orderToken });
+  if (!order) return { ok: false, statusCode: 400, error: "invalid_order_token" };
+  if (String(order.discord_user_id || "") !== String(discordUserId || "")) {
+    return { ok: false, statusCode: 403, error: "order_token_mismatch_user" };
+  }
+  if (String(order.plan || "") !== String(plan || "") || String(order.network || "") !== String(network || "")) {
+    return { ok: false, statusCode: 400, error: "order_token_mismatch_payload" };
+  }
+  if (String(order.status || "") !== "issued") {
+    return { ok: false, statusCode: 409, error: "order_token_used" };
+  }
+  const expMs = parseIsoMs(order.expires_at);
+  if (!Number.isFinite(expMs) || expMs <= Date.now()) {
+    return { ok: false, statusCode: 410, error: "order_token_expired" };
+  }
+  return { ok: true, order };
+}
+
+async function consumeOrderToken(db, { orderToken, discordUserId, plan, network, txHash }) {
+  const nowIso = new Date().toISOString();
+  const r = await db.collection(PAYMENT_ORDERS_COLLECTION).updateOne(
+    {
+      _id: orderToken,
+      discord_user_id: String(discordUserId || ""),
+      plan: String(plan || ""),
+      network: String(network || ""),
+      status: "issued",
+    },
+    {
+      $set: {
+        status: "consumed",
+        consumed_at: nowIso,
+        tx_hash: String(txHash || "").toLowerCase(),
+      },
+    }
+  );
+  return r && r.modifiedCount === 1;
+}
+
+async function releaseOrderToken(db, { orderToken, discordUserId, plan, network, txHash }) {
+  await db.collection(PAYMENT_ORDERS_COLLECTION).updateOne(
+    {
+      _id: orderToken,
+      discord_user_id: String(discordUserId || ""),
+      plan: String(plan || ""),
+      network: String(network || ""),
+      status: "consumed",
+      tx_hash: String(txHash || "").toLowerCase(),
+    },
+    {
+      $set: { status: "issued" },
+      $unset: { consumed_at: "", tx_hash: "" },
+    }
+  );
+}
+
+async function getBlockTimestampMs(network, blockNumberHex) {
+  if (!blockNumberHex) return null;
+  const block = await rpcCall(RPC_URLS[network], "eth_getBlockByNumber", [blockNumberHex, false]);
+  if (!block || !block.timestamp) return null;
+  const sec = Number(hexToBigInt(block.timestamp));
+  if (!Number.isFinite(sec) || sec <= 0) return null;
+  return sec * 1000;
+}
+
+async function reservePaymentTx(db, { network, txHash, discordUserId, plan }) {
+  const paymentId = buildPaymentId(network, txHash);
+  try {
+    await db.collection(PAYMENTS_COLLECTION).insertOne({
+      _id: paymentId,
+      network: String(network || "").trim(),
+      tx_hash: String(txHash || "").trim().toLowerCase(),
+      discord_user_id: String(discordUserId || ""),
+      plan: String(plan || "").trim(),
+      status: "processing",
+      created_at: new Date().toISOString(),
+    });
+    return { ok: true, paymentId };
+  } catch (e) {
+    if (e && e.code === 11000) {
+      const existing = await db.collection(PAYMENTS_COLLECTION).findOne({ _id: paymentId });
+      return { ok: false, duplicate: true, existing };
+    }
+    throw e;
+  }
+}
+
 module.exports = async (req, res) => {
   try {
     if (req.method !== "POST") {
@@ -175,7 +281,8 @@ module.exports = async (req, res) => {
       }
       const plan = String(obj.plan || "").trim();
       const network = String(obj.network || "").trim();
-      const txHash = String(obj.tx_hash || "").trim();
+      const txHash = String(obj.tx_hash || "").trim().toLowerCase();
+      const orderToken = String(obj.order_token || "").trim();
       if (plan !== "pro" && plan !== "ultra") {
         res.statusCode = 400;
         res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -194,6 +301,12 @@ module.exports = async (req, res) => {
         res.end(JSON.stringify({ error: "invalid_tx_hash" }));
         return;
       }
+      if (!/^[a-fA-F0-9]{32,128}$/.test(orderToken)) {
+        res.statusCode = 400;
+        res.setHeader("Content-Type", "application/json; charset=utf-8");
+        res.end(JSON.stringify({ error: "invalid_order_token" }));
+        return;
+      }
 
       const db = await getMongoDb();
       if (!db) {
@@ -203,6 +316,13 @@ module.exports = async (req, res) => {
         return;
       }
       const id = String(payload.discord_user_id);
+      const orderCheck = await getOrderForVerify(db, { orderToken, discordUserId: id, plan, network });
+      if (!orderCheck.ok) {
+        res.statusCode = orderCheck.statusCode;
+        res.setHeader("Content-Type", "application/json; charset=utf-8");
+        res.end(JSON.stringify({ error: orderCheck.error }));
+        return;
+      }
       const member = await db
         .collection(MEMBERS_COLLECTION)
         .findOne({ _id: id, "payment_history.tx_hash": txHash });
@@ -222,6 +342,15 @@ module.exports = async (req, res) => {
         return;
       }
       const receipt = await rpcCall(RPC_URLS[network], "eth_getTransactionReceipt", [txHash]);
+      const blockNumberHex = tx.blockNumber || (receipt && receipt.blockNumber) || null;
+      const txMinedAtMs = await getBlockTimestampMs(network, blockNumberHex);
+      const orderCreatedMs = parseIsoMs(orderCheck.order && orderCheck.order.created_at);
+      if (Number.isFinite(txMinedAtMs) && Number.isFinite(orderCreatedMs) && orderCreatedMs > txMinedAtMs) {
+        res.statusCode = 409;
+        res.setHeader("Content-Type", "application/json; charset=utf-8");
+        res.end(JSON.stringify({ error: "order_token_created_after_tx" }));
+        return;
+      }
       const erc20 = parseErc20Transfer(receipt && receipt.logs, toAddress, ERC20_TOKENS[network]);
       if (!tx.to || normalizeAddress(tx.to) !== toAddress) {
         if (erc20) {
@@ -234,13 +363,15 @@ module.exports = async (req, res) => {
             res.end(JSON.stringify({ error: "missing_pricing" }));
             return;
           }
-          if (amountUsd < threshold - 3) {
+          if (amountUsd < threshold - MEMBERSHIP_PRICE_SHORTFALL_ALLOW_USD) {
             res.statusCode = 400;
             res.setHeader("Content-Type", "application/json; charset=utf-8");
             res.end(JSON.stringify({ error: "amount_insufficient", amount_usd: amountUsd, threshold_usd: threshold }));
             return;
           }
-          const minutes = Math.floor((30 * 24 * 60 * amountUsd) / threshold);
+          // 差价在允许范围内，按足额整月给满；否则按金额比例换算
+          const effectiveUsd = amountUsd < threshold ? threshold : amountUsd;
+          const minutes = Math.floor((MEMBERSHIP_MONTH_MINUTES * effectiveUsd) / threshold);
           if (minutes <= 0) {
             res.statusCode = 400;
             res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -250,31 +381,65 @@ module.exports = async (req, res) => {
           const currentTier = await getTier(id);
           const rank = { basic: 0, pro: 1, ultra: 2 };
           const isUpgrade = (rank[plan] || 0) > (rank[currentTier] || 0);
-          const result = await applyMembershipChange(id, {
-            tier: plan,
-            minutes,
-            is_upgrade: isUpgrade,
-          });
-          await db.collection(MEMBERS_COLLECTION).updateOne(
-            { _id: id },
-            {
-              $push: {
-                payment_history: {
-                  plan,
-                  network,
-                  tx_hash: txHash,
-                  tx_from: tx.from || null,
-                  tx_to: tx.to || null,
-                  token: erc20.symbol,
-                  token_address: erc20.token_address,
-                  amount: erc20.amount,
-                  amount_usd: amountUsd,
-                  price_usd: 1,
-                  created_at: new Date().toISOString(),
+          const reserve = await reservePaymentTx(db, { network, txHash, discordUserId: id, plan });
+          if (!reserve.ok) {
+            const sameUser = reserve.existing && String(reserve.existing.discord_user_id || "") === id;
+            res.statusCode = sameUser ? 200 : 409;
+            res.setHeader("Content-Type", "application/json; charset=utf-8");
+            res.end(
+              JSON.stringify(
+                sameUser
+                  ? { ok: true, note: "already_processed" }
+                  : { error: "tx_hash_already_used", tx_hash: txHash, network }
+              )
+            );
+            return;
+          }
+          const consumed = await consumeOrderToken(db, { orderToken, discordUserId: id, plan, network, txHash });
+          if (!consumed) {
+            await db.collection(PAYMENTS_COLLECTION).deleteOne({ _id: reserve.paymentId, status: "processing" });
+            res.statusCode = 409;
+            res.setHeader("Content-Type", "application/json; charset=utf-8");
+            res.end(JSON.stringify({ error: "order_token_used" }));
+            return;
+          }
+
+          let result;
+          try {
+            result = await applyMembershipChange(id, {
+              tier: plan,
+              minutes,
+              is_upgrade: isUpgrade,
+            });
+            await db.collection(MEMBERS_COLLECTION).updateOne(
+              { _id: id },
+              {
+                $push: {
+                  payment_history: {
+                    plan,
+                    network,
+                    tx_hash: txHash,
+                    tx_from: tx.from || null,
+                    tx_to: tx.to || null,
+                    token: erc20.symbol,
+                    token_address: erc20.token_address,
+                    amount: erc20.amount,
+                    amount_usd: amountUsd,
+                    price_usd: 1,
+                    created_at: new Date().toISOString(),
+                  },
                 },
-              },
-            }
-          );
+              }
+            );
+            await db.collection(PAYMENTS_COLLECTION).updateOne(
+              { _id: reserve.paymentId },
+              { $set: { status: "completed", completed_at: new Date().toISOString() } }
+            );
+          } catch (grantErr) {
+            await releaseOrderToken(db, { orderToken, discordUserId: id, plan, network, txHash });
+            await db.collection(PAYMENTS_COLLECTION).deleteOne({ _id: reserve.paymentId, status: "processing" });
+            throw grantErr;
+          }
           res.statusCode = 200;
           res.setHeader("Content-Type", "application/json; charset=utf-8");
           res.end(JSON.stringify({ ok: true, membership: result.membership }));
@@ -322,13 +487,15 @@ module.exports = async (req, res) => {
         res.end(JSON.stringify({ error: "missing_pricing" }));
         return;
       }
-      if (amountUsd < threshold - 3) {
+      if (amountUsd < threshold - MEMBERSHIP_PRICE_SHORTFALL_ALLOW_USD) {
         res.statusCode = 400;
         res.setHeader("Content-Type", "application/json; charset=utf-8");
         res.end(JSON.stringify({ error: "amount_insufficient", amount_usd: amountUsd, threshold_usd: threshold }));
         return;
       }
-      const minutes = Math.floor((30 * 24 * 60 * amountUsd) / threshold);
+      // 差价在允许范围内，按足额整月给满；否则按金额比例换算
+      const effectiveUsd = amountUsd < threshold ? threshold : amountUsd;
+      const minutes = Math.floor((MEMBERSHIP_MONTH_MINUTES * effectiveUsd) / threshold);
       if (minutes <= 0) {
         res.statusCode = 400;
         res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -339,30 +506,64 @@ module.exports = async (req, res) => {
       const rank = { basic: 0, pro: 1, ultra: 2 };
       const isUpgrade = (rank[plan] || 0) > (rank[currentTier] || 0);
 
-      const result = await applyMembershipChange(id, {
-        tier: plan,
-        minutes,
-        is_upgrade: isUpgrade,
-      });
+      const reserve = await reservePaymentTx(db, { network, txHash, discordUserId: id, plan });
+      if (!reserve.ok) {
+        const sameUser = reserve.existing && String(reserve.existing.discord_user_id || "") === id;
+        res.statusCode = sameUser ? 200 : 409;
+        res.setHeader("Content-Type", "application/json; charset=utf-8");
+        res.end(
+          JSON.stringify(
+            sameUser
+              ? { ok: true, note: "already_processed" }
+              : { error: "tx_hash_already_used", tx_hash: txHash, network }
+          )
+        );
+        return;
+      }
+      const consumed = await consumeOrderToken(db, { orderToken, discordUserId: id, plan, network, txHash });
+      if (!consumed) {
+        await db.collection(PAYMENTS_COLLECTION).deleteOne({ _id: reserve.paymentId, status: "processing" });
+        res.statusCode = 409;
+        res.setHeader("Content-Type", "application/json; charset=utf-8");
+        res.end(JSON.stringify({ error: "order_token_used" }));
+        return;
+      }
 
-      await db.collection(MEMBERS_COLLECTION).updateOne(
-        { _id: id },
-        {
-          $push: {
-            payment_history: {
-              plan,
-              network,
-              tx_hash: txHash,
-              tx_from: tx.from || null,
-              tx_to: tx.to || null,
-              amount,
-              amount_usd: amountUsd,
-              price_usd: priceUsd,
-              created_at: new Date().toISOString(),
+      let result;
+      try {
+        result = await applyMembershipChange(id, {
+          tier: plan,
+          minutes,
+          is_upgrade: isUpgrade,
+        });
+
+        await db.collection(MEMBERS_COLLECTION).updateOne(
+          { _id: id },
+          {
+            $push: {
+              payment_history: {
+                plan,
+                network,
+                tx_hash: txHash,
+                tx_from: tx.from || null,
+                tx_to: tx.to || null,
+                amount,
+                amount_usd: amountUsd,
+                price_usd: priceUsd,
+                created_at: new Date().toISOString(),
+              },
             },
-          },
-        }
-      );
+          }
+        );
+        await db.collection(PAYMENTS_COLLECTION).updateOne(
+          { _id: reserve.paymentId },
+          { $set: { status: "completed", completed_at: new Date().toISOString() } }
+        );
+      } catch (grantErr) {
+        await releaseOrderToken(db, { orderToken, discordUserId: id, plan, network, txHash });
+        await db.collection(PAYMENTS_COLLECTION).deleteOne({ _id: reserve.paymentId, status: "processing" });
+        throw grantErr;
+      }
 
       res.statusCode = 200;
       res.setHeader("Content-Type", "application/json; charset=utf-8");
