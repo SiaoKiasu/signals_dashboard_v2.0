@@ -23,6 +23,7 @@ module.exports = async (req, res) => {
 
   const tier = await getTier(payload.discord_user_id);
   const member = await getMemberRecord(payload.discord_user_id);
+  const paymentHistoryCount = member && Array.isArray(member.payment_history) ? member.payment_history.length : 0;
   res.statusCode = 200;
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.end(
@@ -30,6 +31,7 @@ module.exports = async (req, res) => {
       authenticated: true,
       discord_user_id: payload.discord_user_id,
       note: member && member.note ? member.note : null,
+      can_use_referral: paymentHistoryCount === 0,
       tier,
       membership: member
         ? {

@@ -222,11 +222,11 @@ async function getMemberProfile(db, discordUserId) {
   const doc =
     (await db.collection(MEMBERS_COLLECTION).findOne(
       { _id: String(discordUserId || "") },
-      { projection: { _id: 1, discord_user_id: 1, note: 1, tier: 1 } }
+      { projection: { _id: 1, discord_user_id: 1, note: 1, tier: 1, payment_history: 1 } }
     )) ||
     (await db.collection(MEMBERS_COLLECTION).findOne(
       { discord_user_id: String(discordUserId || "") },
-      { projection: { _id: 1, discord_user_id: 1, note: 1, tier: 1 } }
+      { projection: { _id: 1, discord_user_id: 1, note: 1, tier: 1, payment_history: 1 } }
     ));
   return doc || null;
 }
@@ -370,6 +370,7 @@ module.exports = async (req, res) => {
       const id = String(payload.discord_user_id);
       const me = await getMemberProfile(db, id);
       const memberNote = String(me && me.note ? me.note : "").trim() || null;
+      const hasPaidBefore = !!(me && Array.isArray(me.payment_history) && me.payment_history.length > 0);
       const orderCheck = await getOrderForVerify(db, { orderToken, discordUserId: id, plan, network });
       if (!orderCheck.ok) {
         res.statusCode = orderCheck.statusCode;
@@ -377,8 +378,23 @@ module.exports = async (req, res) => {
         res.end(JSON.stringify({ error: orderCheck.error }));
         return;
       }
+      const member = await db
+        .collection(MEMBERS_COLLECTION)
+        .findOne({ _id: id, "payment_history.tx_hash": txHash });
+      if (member) {
+        res.statusCode = 200;
+        res.setHeader("Content-Type", "application/json; charset=utf-8");
+        res.end(JSON.stringify({ ok: true, note: "already_processed" }));
+        return;
+      }
       let referrer = null;
       if (referrerInput) {
+        if (hasPaidBefore) {
+          res.statusCode = 400;
+          res.setHeader("Content-Type", "application/json; charset=utf-8");
+          res.end(JSON.stringify({ error: "referrer_not_allowed_after_first_payment" }));
+          return;
+        }
         referrer = await resolveReferrer(db, referrerInput);
         if (!referrer) {
           res.statusCode = 400;
@@ -393,15 +409,6 @@ module.exports = async (req, res) => {
           res.end(JSON.stringify({ error: "invalid_referrer_self" }));
           return;
         }
-      }
-      const member = await db
-        .collection(MEMBERS_COLLECTION)
-        .findOne({ _id: id, "payment_history.tx_hash": txHash });
-      if (member) {
-        res.statusCode = 200;
-        res.setHeader("Content-Type", "application/json; charset=utf-8");
-        res.end(JSON.stringify({ ok: true, note: "already_processed" }));
-        return;
       }
 
       const toAddress = ADDRESSES[network].toLowerCase();

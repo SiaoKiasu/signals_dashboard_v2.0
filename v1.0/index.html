@@ -874,6 +874,7 @@
                 status_referrer_ok: 'Referrer verified',
                 status_referrer_invalid: 'Referrer not found',
                 status_referrer_self: 'Referrer cannot be yourself',
+                status_referrer_locked: 'Referrer can only be used on first payment',
                 status_verify_failed: 'Verification failed. Please retry',
                 status_verify_ok: 'Verified. Membership updated',
                 status_network: 'Network error. Please retry',
@@ -882,7 +883,6 @@
                 login: 'Login with Discord',
                 logout: 'Logout',
                 tier: 'Tier',
-                discord_name: 'Discord Name',
                 discord_id: 'Discord ID',
                 remaining: 'Remaining',
                 source: 'Source',
@@ -978,6 +978,7 @@
                 status_referrer_ok: '推荐人校验成功',
                 status_referrer_invalid: '推荐人不存在',
                 status_referrer_self: '推荐人不能是自己',
+                status_referrer_locked: '推荐人仅首充可用',
                 status_verify_failed: '验证失败，请重试',
                 status_verify_ok: '充值验证成功，会员已更新',
                 status_network: '网络异常，请重试',
@@ -986,7 +987,6 @@
                 login: '使用 Discord 登录',
                 logout: '退出',
                 tier: '会员等级',
-                discord_name: 'Discord 名字',
                 discord_id: 'Discord ID',
                 remaining: '剩余时间',
                 source: '来源',
@@ -2200,6 +2200,7 @@
         let upgradeOrderNetwork = '';
         let upgradeMode = 'upgrade';
         let upgradeResolvedReferrer = null;
+        let upgradeCanUseReferrer = true;
         async function createPaymentOrder(plan, network) {
             const r = await fetch('/api/payments/create-order', {
                 method: 'POST',
@@ -2228,6 +2229,7 @@
         async function validateReferrerInput(rawValue) {
             const input = String(rawValue || '').trim();
             if (!input) return { ok: false, error: 'missing_referrer' };
+            if (!upgradeCanUseReferrer) return { ok: false, error: 'referrer_not_allowed_after_first_payment' };
             try {
                 const r = await fetch('/api/payments/config', {
                     method: 'POST',
@@ -2273,6 +2275,10 @@
                 statusEl.textContent = t('status_referrer_self');
                 return;
             }
+            if (result.error === 'referrer_not_allowed_after_first_payment') {
+                statusEl.textContent = t('status_referrer_locked');
+                return;
+            }
             if (result.error === 'network') {
                 statusEl.textContent = t('status_network');
                 return;
@@ -2307,6 +2313,7 @@
             const hashEl = document.getElementById('upgrade-hash');
             const referrerEl = document.getElementById('upgrade-referrer');
             const targetPlan = pickPlanByMode(upgradeMode);
+            upgradeCanUseReferrer = !!(authSnapshot && authSnapshot.can_use_referral) && upgradeMode !== 'renew';
             if (planEl && targetPlan) {
                 planEl.value = targetPlan;
                 planEl.disabled = true;
@@ -2357,11 +2364,16 @@
                 };
             }
             if (referrerEl) {
+                referrerEl.disabled = !upgradeCanUseReferrer;
                 referrerEl.oninput = () => {
                     upgradeResolvedReferrer = null;
                     renderReferrerStatus(null);
                 };
                 referrerEl.onblur = async () => {
+                    if (!upgradeCanUseReferrer) {
+                        renderReferrerStatus({ ok: false, error: 'referrer_not_allowed_after_first_payment' });
+                        return;
+                    }
                     const result = await validateReferrerInput(referrerEl.value);
                     upgradeResolvedReferrer = result.ok ? result.referrer : null;
                     renderReferrerStatus(result);
@@ -2373,7 +2385,7 @@
             if (hashEl) hashEl.value = '';
             if (referrerEl) referrerEl.value = '';
             upgradeResolvedReferrer = null;
-            renderReferrerStatus(null);
+            renderReferrerStatus(upgradeCanUseReferrer ? null : { ok: false, error: 'referrer_not_allowed_after_first_payment' });
             if (!targetPlan) {
                 if (statusEl) statusEl.style.display = 'flex';
                 if (statusText) {
@@ -2412,23 +2424,29 @@
                 return;
             }
             const referrerRaw = String(referrerEl.value || '').trim();
-            if (!referrerRaw) {
+            if (upgradeCanUseReferrer && !referrerRaw) {
                 statusEl.style.display = 'flex';
                 if (statusText) statusText.textContent = t('status_need_referrer');
                 return;
             }
-            if (!upgradeResolvedReferrer || upgradeResolvedReferrer.raw !== referrerRaw) {
-                const refResult = await validateReferrerInput(referrerRaw);
-                upgradeResolvedReferrer = refResult.ok ? refResult.referrer : null;
-                renderReferrerStatus(refResult);
-                if (!refResult.ok) {
-                    statusEl.style.display = 'flex';
-                    if (statusText) {
-                        statusText.textContent = refResult.error === 'invalid_referrer_self'
-                            ? t('status_referrer_self')
-                            : t('status_referrer_invalid');
+            if (upgradeCanUseReferrer) {
+                if (!upgradeResolvedReferrer || upgradeResolvedReferrer.raw !== referrerRaw) {
+                    const refResult = await validateReferrerInput(referrerRaw);
+                    upgradeResolvedReferrer = refResult.ok ? refResult.referrer : null;
+                    renderReferrerStatus(refResult);
+                    if (!refResult.ok) {
+                        statusEl.style.display = 'flex';
+                        if (statusText) {
+                            if (refResult.error === 'invalid_referrer_self') {
+                                statusText.textContent = t('status_referrer_self');
+                            } else if (refResult.error === 'referrer_not_allowed_after_first_payment') {
+                                statusText.textContent = t('status_referrer_locked');
+                            } else {
+                                statusText.textContent = t('status_referrer_invalid');
+                            }
+                        }
+                        return;
                     }
-                    return;
                 }
             }
             statusEl.style.display = 'flex';
@@ -2446,7 +2464,7 @@
                         network: chain,
                         tx_hash: txHash,
                         order_token: upgradeOrderToken,
-                        referrer: referrerRaw,
+                        referrer: upgradeCanUseReferrer ? referrerRaw : '',
                     }),
                 });
                 const j = await r.json();
@@ -2455,6 +2473,7 @@
                         let msg = j && j.error ? j.error : t('status_verify_failed');
                         if (j && j.error === 'invalid_referrer') msg = t('status_referrer_invalid');
                         if (j && j.error === 'invalid_referrer_self') msg = t('status_referrer_self');
+                        if (j && j.error === 'referrer_not_allowed_after_first_payment') msg = t('status_referrer_locked');
                         statusText.textContent = msg;
                     }
                     return;
@@ -2512,7 +2531,6 @@
                         </div>
                         <button id="logout-btn" style="background:transparent; border:1px solid #2a2e39; color:#d1d4dc; padding:6px 10px; border-radius:10px; cursor:pointer;">${t('logout')}</button>
                         <div id="auth-menu-panel" style="position:absolute; right:8px; top:36px; min-width:200px; background:rgba(21,25,36,0.96); border:1px solid #2a2e39; border-radius:10px; padding:10px 12px; display:none; z-index:20;">
-                            <div style="color:#d1d4dc; font-size:12px; margin-bottom:6px;">${t('discord_name')}: ${discordName}</div>
                             <div style="color:#9aa3b2; font-size:12px; margin-bottom:6px;">${t('discord_id')}: ${authSnapshot.discord_user_id}</div>
                             <div style="color:#9fb3ff; font-size:12px; margin-bottom:6px;">${t('tier')}: ${tier}</div>
                             <div style="color:#f8cb46; font-size:12px;">${t('remaining')}: ${remain}</div>
