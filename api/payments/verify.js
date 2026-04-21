@@ -148,6 +148,10 @@ function buildPaymentId(network, txHash) {
   return `${String(network || "").trim().toLowerCase()}:${String(txHash || "").trim().toLowerCase()}`;
 }
 
+function escapeRegex(v) {
+  return String(v || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 async function getOrderForVerify(db, { orderToken, discordUserId, plan, network }) {
   const order = await db.collection(PAYMENT_ORDERS_COLLECTION).findOne({ _id: orderToken });
   if (!order) return { ok: false, statusCode: 400, error: "invalid_order_token" };
@@ -214,7 +218,53 @@ async function getBlockTimestampMs(network, blockNumberHex) {
   return sec * 1000;
 }
 
-async function reservePaymentTx(db, { network, txHash, discordUserId, plan }) {
+async function getMemberProfile(db, discordUserId) {
+  const doc =
+    (await db.collection(MEMBERS_COLLECTION).findOne(
+      { _id: String(discordUserId || "") },
+      { projection: { _id: 1, discord_user_id: 1, note: 1, tier: 1 } }
+    )) ||
+    (await db.collection(MEMBERS_COLLECTION).findOne(
+      { discord_user_id: String(discordUserId || "") },
+      { projection: { _id: 1, discord_user_id: 1, note: 1, tier: 1 } }
+    ));
+  return doc || null;
+}
+
+async function resolveReferrer(db, rawInput) {
+  const input = String(rawInput || "").trim();
+  if (!input) return null;
+  if (/^\d{6,30}$/.test(input)) {
+    const byId =
+      (await db.collection(MEMBERS_COLLECTION).findOne(
+        { _id: input },
+        { projection: { _id: 1, discord_user_id: 1, note: 1, tier: 1 } }
+      )) ||
+      (await db.collection(MEMBERS_COLLECTION).findOne(
+        { discord_user_id: input },
+        { projection: { _id: 1, discord_user_id: 1, note: 1, tier: 1 } }
+      ));
+    if (byId) return byId;
+  }
+  const byNote = await db.collection(MEMBERS_COLLECTION).findOne(
+    { note: { $regex: `^${escapeRegex(input)}$`, $options: "i" } },
+    { projection: { _id: 1, discord_user_id: 1, note: 1, tier: 1 } }
+  );
+  return byNote || null;
+}
+
+async function rewardReferrer(db, referrerId) {
+  const tier = await getTier(referrerId);
+  if (tier !== "pro" && tier !== "ultra") return { rewarded: false, reason: "referrer_not_member" };
+  const result = await applyMembershipChange(referrerId, {
+    tier,
+    days: 10,
+    is_upgrade: false,
+  });
+  return { rewarded: true, tier, membership: result.membership };
+}
+
+async function reservePaymentTx(db, { network, txHash, discordUserId, plan, note }) {
   const paymentId = buildPaymentId(network, txHash);
   try {
     await db.collection(PAYMENTS_COLLECTION).insertOne({
@@ -222,6 +272,7 @@ async function reservePaymentTx(db, { network, txHash, discordUserId, plan }) {
       network: String(network || "").trim(),
       tx_hash: String(txHash || "").trim().toLowerCase(),
       discord_user_id: String(discordUserId || ""),
+      note: String(note || "").trim() || null,
       plan: String(plan || "").trim(),
       status: "processing",
       created_at: new Date().toISOString(),
@@ -283,6 +334,7 @@ module.exports = async (req, res) => {
       const network = String(obj.network || "").trim();
       const txHash = String(obj.tx_hash || "").trim().toLowerCase();
       const orderToken = String(obj.order_token || "").trim();
+      const referrerInput = String(obj.referrer || "").trim();
       if (plan !== "pro" && plan !== "ultra") {
         res.statusCode = 400;
         res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -316,12 +368,31 @@ module.exports = async (req, res) => {
         return;
       }
       const id = String(payload.discord_user_id);
+      const me = await getMemberProfile(db, id);
+      const memberNote = String(me && me.note ? me.note : "").trim() || null;
       const orderCheck = await getOrderForVerify(db, { orderToken, discordUserId: id, plan, network });
       if (!orderCheck.ok) {
         res.statusCode = orderCheck.statusCode;
         res.setHeader("Content-Type", "application/json; charset=utf-8");
         res.end(JSON.stringify({ error: orderCheck.error }));
         return;
+      }
+      let referrer = null;
+      if (referrerInput) {
+        referrer = await resolveReferrer(db, referrerInput);
+        if (!referrer) {
+          res.statusCode = 400;
+          res.setHeader("Content-Type", "application/json; charset=utf-8");
+          res.end(JSON.stringify({ error: "invalid_referrer" }));
+          return;
+        }
+        const referrerId = String(referrer._id || referrer.discord_user_id || "");
+        if (referrerId === id) {
+          res.statusCode = 400;
+          res.setHeader("Content-Type", "application/json; charset=utf-8");
+          res.end(JSON.stringify({ error: "invalid_referrer_self" }));
+          return;
+        }
       }
       const member = await db
         .collection(MEMBERS_COLLECTION)
@@ -381,7 +452,7 @@ module.exports = async (req, res) => {
           const currentTier = await getTier(id);
           const rank = { basic: 0, pro: 1, ultra: 2 };
           const isUpgrade = (rank[plan] || 0) > (rank[currentTier] || 0);
-          const reserve = await reservePaymentTx(db, { network, txHash, discordUserId: id, plan });
+          const reserve = await reservePaymentTx(db, { network, txHash, discordUserId: id, plan, note: memberNote });
           if (!reserve.ok) {
             const sameUser = reserve.existing && String(reserve.existing.discord_user_id || "") === id;
             res.statusCode = sameUser ? 200 : 409;
@@ -426,14 +497,33 @@ module.exports = async (req, res) => {
                     amount: erc20.amount,
                     amount_usd: amountUsd,
                     price_usd: 1,
+                    note: memberNote,
+                    referrer: referrerInput || null,
                     created_at: new Date().toISOString(),
                   },
                 },
               }
             );
+            let referralReward = null;
+            if (referrer) {
+              try {
+                const referrerId = String(referrer._id || referrer.discord_user_id || "");
+                referralReward = await rewardReferrer(db, referrerId);
+              } catch {
+                referralReward = { rewarded: false, reason: "reward_failed" };
+              }
+            }
             await db.collection(PAYMENTS_COLLECTION).updateOne(
               { _id: reserve.paymentId },
-              { $set: { status: "completed", completed_at: new Date().toISOString() } }
+              {
+                $set: {
+                  status: "completed",
+                  completed_at: new Date().toISOString(),
+                  referrer_user_id: referrer ? String(referrer._id || referrer.discord_user_id || "") : null,
+                  referrer_note: referrer && referrer.note ? referrer.note : null,
+                  referral_reward: referralReward || null,
+                },
+              }
             );
           } catch (grantErr) {
             await releaseOrderToken(db, { orderToken, discordUserId: id, plan, network, txHash });
@@ -506,7 +596,7 @@ module.exports = async (req, res) => {
       const rank = { basic: 0, pro: 1, ultra: 2 };
       const isUpgrade = (rank[plan] || 0) > (rank[currentTier] || 0);
 
-      const reserve = await reservePaymentTx(db, { network, txHash, discordUserId: id, plan });
+      const reserve = await reservePaymentTx(db, { network, txHash, discordUserId: id, plan, note: memberNote });
       if (!reserve.ok) {
         const sameUser = reserve.existing && String(reserve.existing.discord_user_id || "") === id;
         res.statusCode = sameUser ? 200 : 409;
@@ -550,14 +640,33 @@ module.exports = async (req, res) => {
                 amount,
                 amount_usd: amountUsd,
                 price_usd: priceUsd,
+                note: memberNote,
+                referrer: referrerInput || null,
                 created_at: new Date().toISOString(),
               },
             },
           }
         );
+        let referralReward = null;
+        if (referrer) {
+          try {
+            const referrerId = String(referrer._id || referrer.discord_user_id || "");
+            referralReward = await rewardReferrer(db, referrerId);
+          } catch {
+            referralReward = { rewarded: false, reason: "reward_failed" };
+          }
+        }
         await db.collection(PAYMENTS_COLLECTION).updateOne(
           { _id: reserve.paymentId },
-          { $set: { status: "completed", completed_at: new Date().toISOString() } }
+          {
+            $set: {
+              status: "completed",
+              completed_at: new Date().toISOString(),
+              referrer_user_id: referrer ? String(referrer._id || referrer.discord_user_id || "") : null,
+              referrer_note: referrer && referrer.note ? referrer.note : null,
+              referral_reward: referralReward || null,
+            },
+          }
         );
       } catch (grantErr) {
         await releaseOrderToken(db, { orderToken, discordUserId: id, plan, network, txHash });

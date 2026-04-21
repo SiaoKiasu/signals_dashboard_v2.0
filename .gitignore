@@ -1,4 +1,5 @@
 # 本地测试和配置文件，不同步到 git
+node_modules/
 v1.0/signal_data.json
 v1.0/signals_notification.py
 v1.0/place_orders.py

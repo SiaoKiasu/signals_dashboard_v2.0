@@ -55,7 +55,7 @@ async function run() {
     const cursor = db.collection(MEMBERS_COLLECTION).aggregate([
       { $match: { payment_history: { $type: "array", $ne: [] } } },
       { $unwind: "$payment_history" },
-      { $project: { _id: 1, discord_user_id: 1, payment_history: 1 } },
+      { $project: { _id: 1, discord_user_id: 1, note: 1, payment_history: 1 } },
     ]);
 
     for await (const row of cursor) {
@@ -69,12 +69,14 @@ async function run() {
       }
 
       const memberId = String(row && (row._id || row.discord_user_id) ? row._id || row.discord_user_id : "");
+      const memberNote = String(row && row.note ? row.note : "").trim() || null;
       const paymentId = buildPaymentId(network, txHash);
       const baseDoc = {
         _id: paymentId,
         network,
         tx_hash: txHash,
         discord_user_id: memberId,
+        note: memberNote,
         plan: String(item && item.plan ? item.plan : "").trim(),
         tx_from: item && item.tx_from ? item.tx_from : null,
         tx_to: item && item.tx_to ? item.tx_to : null,

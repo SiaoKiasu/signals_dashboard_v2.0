@@ -817,6 +817,11 @@
                 <label id="upgrade-label-hash">Tx Hash</label>
                 <input id="upgrade-hash" placeholder="Please paste transaction hash" />
             </div>
+            <div class="upgrade-row">
+                <label id="upgrade-label-referrer">Referrer</label>
+                <input id="upgrade-referrer" placeholder="Enter referrer Discord ID or name" />
+            </div>
+            <div id="upgrade-referrer-status" class="upgrade-recommend" style="margin-top:-6px;"></div>
             <div class="upgrade-hint" id="upgrade-hint">
                 Please complete the transfer, then paste the tx hash to confirm. Solana is not supported.
             </div>
@@ -853,14 +858,22 @@
                 label_network: 'Network',
                 label_address: 'Address',
                 label_hash: 'Tx Hash',
+                label_referrer: 'Referrer',
                 hash_placeholder: 'Please paste transaction hash',
+                referrer_placeholder: 'Enter referrer Discord ID or name',
                 upgrade_hint: 'Please complete the transfer, then paste the tx hash to confirm. Solana is not supported.',
                 price_suffix: '/ 30 days',
                 btn_submit: 'Submit',
                 btn_close: 'Close',
+                renew_btn: 'Renew',
+                upgrade_btn: 'Upgrade',
                 status_processing: 'Processing, please wait...',
                 status_solana: 'Solana not supported. Do not transfer.',
                 status_need_hash: 'Please enter tx hash',
+                status_need_referrer: 'Please enter referrer',
+                status_referrer_ok: 'Referrer verified',
+                status_referrer_invalid: 'Referrer not found',
+                status_referrer_self: 'Referrer cannot be yourself',
                 status_verify_failed: 'Verification failed. Please retry',
                 status_verify_ok: 'Verified. Membership updated',
                 status_network: 'Network error. Please retry',
@@ -869,8 +882,9 @@
                 login: 'Login with Discord',
                 logout: 'Logout',
                 tier: 'Tier',
+                discord_name: 'Discord Name',
+                discord_id: 'Discord ID',
                 remaining: 'Remaining',
-                upgrade_btn: 'Upgrade Plan',
                 source: 'Source',
                 recommended: 'Recommended',
                 network_eth: 'Ethereum',
@@ -948,14 +962,22 @@
                 label_network: '网络',
                 label_address: '收款地址',
                 label_hash: '交易 Hash',
+                label_referrer: '推荐人',
                 hash_placeholder: '请粘贴交易 Hash',
+                referrer_placeholder: '输入推荐人 Discord ID 或名字',
                 upgrade_hint: '请先完成转账，然后复制交易 Hash 在这里提交确认。Solana 暂不支持，请不要充值。',
                 price_suffix: '/ 30天',
                 btn_submit: '提交',
                 btn_close: '关闭',
+                renew_btn: '续费',
+                upgrade_btn: '升级',
                 status_processing: '处理中，请等待确认...',
                 status_solana: 'Solana 暂不支持，请不要充值',
                 status_need_hash: '请填写交易 Hash',
+                status_need_referrer: '请填写推荐人',
+                status_referrer_ok: '推荐人校验成功',
+                status_referrer_invalid: '推荐人不存在',
+                status_referrer_self: '推荐人不能是自己',
                 status_verify_failed: '验证失败，请重试',
                 status_verify_ok: '充值验证成功，会员已更新',
                 status_network: '网络异常，请重试',
@@ -964,8 +986,9 @@
                 login: '使用 Discord 登录',
                 logout: '退出',
                 tier: '会员等级',
+                discord_name: 'Discord 名字',
+                discord_id: 'Discord ID',
                 remaining: '剩余时间',
-                upgrade_btn: '升级会员',
                 source: '来源',
                 recommended: '推荐',
                 network_eth: 'Ethereum',
@@ -1062,6 +1085,7 @@
             setText('upgrade-label-network', t('label_network'));
             setText('upgrade-label-address', t('label_address'));
             setText('upgrade-label-hash', t('label_hash'));
+            setText('upgrade-label-referrer', t('label_referrer'));
             setText('upgrade-hint', t('upgrade_hint'));
             setText('upgrade-network-eth', `${t('network_eth')} (${t('recommended')})`);
             setText('upgrade-network-bnb', t('network_bnb'));
@@ -1071,6 +1095,8 @@
             if (guideLink) guideLink.title = t('upgrade_guide_title');
             const hashInput = document.getElementById('upgrade-hash');
             if (hashInput) hashInput.placeholder = t('hash_placeholder');
+            const referrerInput = document.getElementById('upgrade-referrer');
+            if (referrerInput) referrerInput.placeholder = t('referrer_placeholder');
             const submitBtn = document.getElementById('upgrade-submit');
             const closeBtn = document.getElementById('upgrade-close');
             if (submitBtn) submitBtn.textContent = t('btn_submit');
@@ -2172,6 +2198,8 @@
         let upgradeOrderToken = '';
         let upgradeOrderPlan = '';
         let upgradeOrderNetwork = '';
+        let upgradeMode = 'upgrade';
+        let upgradeResolvedReferrer = null;
         async function createPaymentOrder(plan, network) {
             const r = await fetch('/api/payments/create-order', {
                 method: 'POST',
@@ -2187,6 +2215,74 @@
             upgradeOrderPlan = plan;
             upgradeOrderNetwork = network;
         }
+        function pickPlanByMode(mode) {
+            const tier = String((authSnapshot && authSnapshot.tier) || 'basic').toLowerCase();
+            if (mode === 'renew') {
+                if (tier === 'pro' || tier === 'ultra') return tier;
+                return null;
+            }
+            if (tier === 'basic') return 'pro';
+            if (tier === 'pro') return 'ultra';
+            return null;
+        }
+        async function validateReferrerInput(rawValue) {
+            const input = String(rawValue || '').trim();
+            if (!input) return { ok: false, error: 'missing_referrer' };
+            try {
+                const r = await fetch('/api/payments/config', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ referrer: input }),
+                });
+                const j = await r.json();
+                if (!r.ok || !j.ok || !j.valid || !j.referrer) {
+                    return { ok: false, error: (j && j.error) || 'referrer_not_found' };
+                }
+                if (String(j.referrer.discord_user_id || '') === String((authSnapshot && authSnapshot.discord_user_id) || '')) {
+                    return { ok: false, error: 'invalid_referrer_self' };
+                }
+                return {
+                    ok: true,
+                    referrer: {
+                        discord_user_id: String(j.referrer.discord_user_id || ''),
+                        note: j.referrer.note || null,
+                        tier: String(j.referrer.tier || 'basic').toLowerCase(),
+                        raw: input,
+                    },
+                };
+            } catch {
+                return { ok: false, error: 'network' };
+            }
+        }
+        function renderReferrerStatus(result) {
+            const statusEl = document.getElementById('upgrade-referrer-status');
+            if (!statusEl) return;
+            if (!result) {
+                statusEl.textContent = '';
+                return;
+            }
+            if (result.ok && result.referrer) {
+                const label = result.referrer.note || result.referrer.discord_user_id;
+                statusEl.style.color = '#6fd8a8';
+                statusEl.textContent = `${t('status_referrer_ok')}: ${label}`;
+                return;
+            }
+            statusEl.style.color = '#ff7f7f';
+            if (result.error === 'invalid_referrer_self') {
+                statusEl.textContent = t('status_referrer_self');
+                return;
+            }
+            if (result.error === 'network') {
+                statusEl.textContent = t('status_network');
+                return;
+            }
+            if (result.error === 'missing_referrer') {
+                statusEl.textContent = t('status_need_referrer');
+                return;
+            }
+            statusEl.textContent = t('status_referrer_invalid');
+        }
         async function fetchPricing() {
             try {
                 const r = await fetch('/api/payments/config', { credentials: 'include' });
@@ -2196,9 +2292,10 @@
                 return null;
             }
         }
-        async function openUpgradeModal() {
+        async function openUpgradeModal(mode = 'upgrade') {
             const modal = document.getElementById('upgrade-modal');
             if (!modal) return;
+            upgradeMode = mode === 'renew' ? 'renew' : 'upgrade';
             modal.style.display = 'flex';
             const addressEl = document.getElementById('upgrade-address');
             const recommendEl = document.getElementById('upgrade-recommend');
@@ -2208,6 +2305,12 @@
             const statusEl = document.getElementById('upgrade-status');
             const statusText = document.getElementById('upgrade-status-text');
             const hashEl = document.getElementById('upgrade-hash');
+            const referrerEl = document.getElementById('upgrade-referrer');
+            const targetPlan = pickPlanByMode(upgradeMode);
+            if (planEl && targetPlan) {
+                planEl.value = targetPlan;
+                planEl.disabled = true;
+            }
             const config = await fetchPricing();
             const renderPrice = () => {
                 if (!priceEl) return;
@@ -2253,10 +2356,31 @@
                     await ensureOrderToken();
                 };
             }
+            if (referrerEl) {
+                referrerEl.oninput = () => {
+                    upgradeResolvedReferrer = null;
+                    renderReferrerStatus(null);
+                };
+                referrerEl.onblur = async () => {
+                    const result = await validateReferrerInput(referrerEl.value);
+                    upgradeResolvedReferrer = result.ok ? result.referrer : null;
+                    renderReferrerStatus(result);
+                };
+            }
             renderPrice();
             renderAddress();
             if (statusEl) statusEl.style.display = 'none';
             if (hashEl) hashEl.value = '';
+            if (referrerEl) referrerEl.value = '';
+            upgradeResolvedReferrer = null;
+            renderReferrerStatus(null);
+            if (!targetPlan) {
+                if (statusEl) statusEl.style.display = 'flex';
+                if (statusText) {
+                    statusText.textContent = upgradeMode === 'renew' ? t('status_verify_failed') : t('status_verify_failed');
+                }
+                return;
+            }
             await ensureOrderToken();
         }
         function closeUpgradeModal() {
@@ -2265,14 +2389,16 @@
             upgradeOrderToken = '';
             upgradeOrderPlan = '';
             upgradeOrderNetwork = '';
+            upgradeResolvedReferrer = null;
         }
         async function submitUpgrade() {
             const planEl = document.getElementById('upgrade-plan');
             const netEl = document.getElementById('upgrade-network');
             const hashEl = document.getElementById('upgrade-hash');
+            const referrerEl = document.getElementById('upgrade-referrer');
             const statusEl = document.getElementById('upgrade-status');
             const statusText = document.getElementById('upgrade-status-text');
-            if (!planEl || !netEl || !hashEl || !statusEl) return;
+            if (!planEl || !netEl || !hashEl || !statusEl || !referrerEl) return;
             const chain = netEl.value;
             if (chain === 'solana') {
                 statusEl.style.display = 'flex';
@@ -2284,6 +2410,26 @@
                 statusEl.style.display = 'flex';
                 if (statusText) statusText.textContent = t('status_need_hash');
                 return;
+            }
+            const referrerRaw = String(referrerEl.value || '').trim();
+            if (!referrerRaw) {
+                statusEl.style.display = 'flex';
+                if (statusText) statusText.textContent = t('status_need_referrer');
+                return;
+            }
+            if (!upgradeResolvedReferrer || upgradeResolvedReferrer.raw !== referrerRaw) {
+                const refResult = await validateReferrerInput(referrerRaw);
+                upgradeResolvedReferrer = refResult.ok ? refResult.referrer : null;
+                renderReferrerStatus(refResult);
+                if (!refResult.ok) {
+                    statusEl.style.display = 'flex';
+                    if (statusText) {
+                        statusText.textContent = refResult.error === 'invalid_referrer_self'
+                            ? t('status_referrer_self')
+                            : t('status_referrer_invalid');
+                    }
+                    return;
+                }
             }
             statusEl.style.display = 'flex';
             if (statusText) statusText.textContent = t('status_processing');
@@ -2300,12 +2446,15 @@
                         network: chain,
                         tx_hash: txHash,
                         order_token: upgradeOrderToken,
+                        referrer: referrerRaw,
                     }),
                 });
                 const j = await r.json();
                 if (!r.ok || !j.ok) {
                     if (statusText) {
-                        const msg = j && j.error ? j.error : t('status_verify_failed');
+                        let msg = j && j.error ? j.error : t('status_verify_failed');
+                        if (j && j.error === 'invalid_referrer') msg = t('status_referrer_invalid');
+                        if (j && j.error === 'invalid_referrer_self') msg = t('status_referrer_self');
                         statusText.textContent = msg;
                     }
                     return;
@@ -2347,22 +2496,29 @@
             function renderAuthedBox() {
                 if (!authSnapshot || !authSnapshot.authenticated) return;
                 const tier = String(authSnapshot.tier || 'basic').toUpperCase();
+                const tierLower = String(authSnapshot.tier || 'basic').toLowerCase();
+                const discordName = String(authSnapshot.note || '').trim() || authSnapshot.discord_user_id;
                 const expiresAt = authSnapshot.membership && authSnapshot.membership.expires_at
                     ? authSnapshot.membership.expires_at
                     : null;
                 const remain = formatRemain(expiresAt);
+                const renewDisabled = !(tierLower === 'pro' || tierLower === 'ultra');
+                const upgradeDisabled = tierLower === 'ultra';
                 el.innerHTML = `
                     <div style="display:flex; align-items:center; gap:10px; background:rgba(21,25,36,0.9); border:1px solid #2a2e39; padding:6px 8px; border-radius:10px; position:relative;">
                         <div id="auth-menu-toggle" style="display:flex; align-items:center; gap:6px; cursor:pointer; color:#d1d4dc; font-size:12px;">
-                            <span>${authSnapshot.discord_user_id}</span>
+                            <span>${discordName}</span>
                             <span style="font-size:10px; color:#787b86;">▼</span>
                         </div>
                         <button id="logout-btn" style="background:transparent; border:1px solid #2a2e39; color:#d1d4dc; padding:6px 10px; border-radius:10px; cursor:pointer;">${t('logout')}</button>
                         <div id="auth-menu-panel" style="position:absolute; right:8px; top:36px; min-width:200px; background:rgba(21,25,36,0.96); border:1px solid #2a2e39; border-radius:10px; padding:10px 12px; display:none; z-index:20;">
+                            <div style="color:#d1d4dc; font-size:12px; margin-bottom:6px;">${t('discord_name')}: ${discordName}</div>
+                            <div style="color:#9aa3b2; font-size:12px; margin-bottom:6px;">${t('discord_id')}: ${authSnapshot.discord_user_id}</div>
                             <div style="color:#9fb3ff; font-size:12px; margin-bottom:6px;">${t('tier')}: ${tier}</div>
                             <div style="color:#f8cb46; font-size:12px;">${t('remaining')}: ${remain}</div>
-                            <div style="margin-top:8px;">
-                                <button id="upgrade-open" style="width:100%; background:transparent; border:1px solid #2a2e39; color:#d1d4dc; padding:6px 8px; border-radius:8px; cursor:pointer; font-size:11px;">${t('upgrade_btn')}</button>
+                            <div style="margin-top:8px; display:flex; gap:8px;">
+                                <button id="renew-open" ${renewDisabled ? 'disabled' : ''} style="width:50%; background:transparent; border:1px solid #2a2e39; color:${renewDisabled ? '#6b7280' : '#d1d4dc'}; padding:6px 8px; border-radius:8px; cursor:${renewDisabled ? 'not-allowed' : 'pointer'}; font-size:11px; opacity:${renewDisabled ? '0.45' : '1'};">${t('renew_btn')}</button>
+                                <button id="upgrade-open" ${upgradeDisabled ? 'disabled' : ''} style="width:50%; background:transparent; border:1px solid #2a2e39; color:${upgradeDisabled ? '#6b7280' : '#d1d4dc'}; padding:6px 8px; border-radius:8px; cursor:${upgradeDisabled ? 'not-allowed' : 'pointer'}; font-size:11px; opacity:${upgradeDisabled ? '0.45' : '1'};">${t('upgrade_btn')}</button>
                             </div>
                         </div>
                     </div>
@@ -2383,7 +2539,16 @@
                 if (upgradeOpen) {
                     upgradeOpen.onclick = (e) => {
                         e.stopPropagation();
-                        openUpgradeModal();
+                        if (upgradeOpen.disabled) return;
+                        openUpgradeModal('upgrade');
+                    };
+                }
+                const renewOpen = document.getElementById('renew-open');
+                if (renewOpen) {
+                    renewOpen.onclick = (e) => {
+                        e.stopPropagation();
+                        if (renewOpen.disabled) return;
+                        openUpgradeModal('renew');
                     };
                 }
             }

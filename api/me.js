@@ -29,6 +29,7 @@ module.exports = async (req, res) => {
     JSON.stringify({
       authenticated: true,
       discord_user_id: payload.discord_user_id,
+      note: member && member.note ? member.note : null,
       tier,
       membership: member
         ? {
