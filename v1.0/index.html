@@ -852,7 +852,7 @@
                 whales_title: 'Hyperliquid Whales Monitor',
                 whales_sub: 'Hyperliquid Data',
                 coming_soon: 'Coming Soon',
-                upgrade_title: 'Upgrade Plan',
+                upgrade_title: 'Membership Recharge',
                 label_plan: 'Plan',
                 label_price: 'Price',
                 label_network: 'Network',
@@ -867,6 +867,7 @@
                 btn_close: 'Close',
                 renew_btn: 'Renew',
                 upgrade_btn: 'Upgrade',
+                open_member_btn: 'Open Membership',
                 status_processing: 'Processing, please wait...',
                 status_solana: 'Solana not supported. Do not transfer.',
                 status_need_hash: 'Please enter tx hash',
@@ -956,7 +957,7 @@
                 whales_title: 'Hyperliquid 巨鲸监控',
                 whales_sub: '即将上线',
                 coming_soon: '即将上线',
-                upgrade_title: '升级会员',
+                upgrade_title: '会员充值',
                 label_plan: '会员等级',
                 label_price: '价格',
                 label_network: '网络',
@@ -964,13 +965,14 @@
                 label_hash: '交易 Hash',
                 label_referrer: '推荐人',
                 hash_placeholder: '请粘贴交易 Hash',
-                referrer_placeholder: '输入推荐人 Discord ID 或名字',
+                referrer_placeholder: '输入推荐人Discord ID或用户名',
                 upgrade_hint: '请先完成转账，然后复制交易 Hash 在这里提交确认。Solana 暂不支持，请不要充值。',
                 price_suffix: '/ 30天',
                 btn_submit: '提交',
                 btn_close: '关闭',
                 renew_btn: '续费',
                 upgrade_btn: '升级',
+                open_member_btn: '开通会员',
                 status_processing: '处理中，请等待确认...',
                 status_solana: 'Solana 暂不支持，请不要充值',
                 status_need_hash: '请填写交易 Hash',
@@ -2523,6 +2525,7 @@
                 const remain = formatRemain(expiresAt);
                 const renewDisabled = !(tierLower === 'pro' || tierLower === 'ultra');
                 const upgradeDisabled = tierLower === 'ultra';
+                const isBasic = tierLower === 'basic';
                 el.innerHTML = `
                     <div style="display:flex; align-items:center; gap:10px; background:rgba(21,25,36,0.9); border:1px solid #2a2e39; padding:6px 8px; border-radius:10px; position:relative;">
                         <div id="auth-menu-toggle" style="display:flex; align-items:center; gap:6px; cursor:pointer; color:#d1d4dc; font-size:12px;">
@@ -2534,10 +2537,15 @@
                             <div style="color:#9aa3b2; font-size:12px; margin-bottom:6px;">${t('discord_id')}: ${authSnapshot.discord_user_id}</div>
                             <div style="color:#9fb3ff; font-size:12px; margin-bottom:6px;">${t('tier')}: ${tier}</div>
                             <div style="color:#f8cb46; font-size:12px;">${t('remaining')}: ${remain}</div>
-                            <div style="margin-top:8px; display:flex; gap:8px;">
-                                <button id="renew-open" ${renewDisabled ? 'disabled' : ''} style="width:50%; background:transparent; border:1px solid #2a2e39; color:${renewDisabled ? '#6b7280' : '#d1d4dc'}; padding:6px 8px; border-radius:8px; cursor:${renewDisabled ? 'not-allowed' : 'pointer'}; font-size:11px; opacity:${renewDisabled ? '0.45' : '1'};">${t('renew_btn')}</button>
-                                <button id="upgrade-open" ${upgradeDisabled ? 'disabled' : ''} style="width:50%; background:transparent; border:1px solid #2a2e39; color:${upgradeDisabled ? '#6b7280' : '#d1d4dc'}; padding:6px 8px; border-radius:8px; cursor:${upgradeDisabled ? 'not-allowed' : 'pointer'}; font-size:11px; opacity:${upgradeDisabled ? '0.45' : '1'};">${t('upgrade_btn')}</button>
-                            </div>
+                            ${isBasic
+                                ? `<div style="margin-top:8px;">
+                                    <button id="open-member-open" style="width:100%; background:transparent; border:1px solid #2a2e39; color:#d1d4dc; padding:6px 8px; border-radius:8px; cursor:pointer; font-size:11px;">${t('open_member_btn')}</button>
+                                  </div>`
+                                : `<div style="margin-top:8px; display:flex; gap:8px;">
+                                    <button id="renew-open" ${renewDisabled ? 'disabled' : ''} style="width:50%; background:transparent; border:1px solid #2a2e39; color:${renewDisabled ? '#6b7280' : '#d1d4dc'}; padding:6px 8px; border-radius:8px; cursor:${renewDisabled ? 'not-allowed' : 'pointer'}; font-size:11px; opacity:${renewDisabled ? '0.45' : '1'};">${t('renew_btn')}</button>
+                                    <button id="upgrade-open" ${upgradeDisabled ? 'disabled' : ''} style="width:50%; background:transparent; border:1px solid #2a2e39; color:${upgradeDisabled ? '#6b7280' : '#d1d4dc'}; padding:6px 8px; border-radius:8px; cursor:${upgradeDisabled ? 'not-allowed' : 'pointer'}; font-size:11px; opacity:${upgradeDisabled ? '0.45' : '1'};">${t('upgrade_btn')}</button>
+                                  </div>`
+                            }
                         </div>
                     </div>
                 `;
@@ -2567,6 +2575,13 @@
                         e.stopPropagation();
                         if (renewOpen.disabled) return;
                         openUpgradeModal('renew');
+                    };
+                }
+                const openMemberBtn = document.getElementById('open-member-open');
+                if (openMemberBtn) {
+                    openMemberBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        openUpgradeModal('upgrade');
                     };
                 }
             }
