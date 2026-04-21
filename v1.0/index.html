@@ -586,6 +586,31 @@
             color: #787b86;
             line-height: 1.6;
         }
+        .upgrade-tip-anchor {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+        .upgrade-tip-bubble {
+            display: none;
+            position: absolute;
+            left: 22px;
+            top: -8px;
+            min-width: 180px;
+            max-width: 240px;
+            background: rgba(12, 16, 24, 0.98);
+            border: 1px solid #2a2e39;
+            border-radius: 8px;
+            color: #d1d4dc;
+            font-size: 11px;
+            line-height: 1.5;
+            padding: 6px 8px;
+            z-index: 30;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+        }
+        .upgrade-tip-anchor:hover .upgrade-tip-bubble {
+            display: block;
+        }
         .upgrade-status {
             margin-top: 10px;
             font-size: 12px;
@@ -820,14 +845,15 @@
             <div class="upgrade-row">
                 <label id="upgrade-label-referrer-wrap">
                     <span id="upgrade-label-referrer">Referrer</span>
-                    <span id="upgrade-referrer-tip" style="display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; border:1px solid #4a4f5d; border-radius:50%; font-size:10px; color:#9aa3b2; margin-left:6px; cursor:help;">?</span>
+                    <span class="upgrade-tip-anchor" style="margin-left:6px;">
+                        <span id="upgrade-referrer-tip" style="display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; border:1px solid #4a4f5d; border-radius:50%; font-size:10px; color:#9aa3b2; cursor:help;">?</span>
+                        <span id="upgrade-referrer-tip-text" class="upgrade-tip-bubble">Referrer can only be used on first payment</span>
+                    </span>
                 </label>
                 <input id="upgrade-referrer" placeholder="Enter referrer Discord ID or name" />
             </div>
             <div id="upgrade-referrer-status" class="upgrade-recommend" style="margin-top:-6px;"></div>
-            <div class="upgrade-hint" id="upgrade-hint">
-                Please complete the transfer, then paste the tx hash to confirm. Solana is not supported.
-            </div>
+            <div class="upgrade-hint" id="upgrade-referrer-bonus">Fill referrer for +5 days, and referrer gets +10 days.</div>
             <div class="upgrade-actions">
                 <button id="upgrade-submit" class="upgrade-btn">Submit</button>
                 <button id="upgrade-close" class="upgrade-btn secondary">Close</button>
@@ -862,9 +888,10 @@
                 label_address: 'Address',
                 label_hash: 'Tx Hash',
                 label_referrer: 'Referrer',
-                hash_placeholder: 'Please paste transaction hash',
+                hash_placeholder: 'Complete transfer first, then paste tx hash here',
+                hash_placeholder_solana: 'Solana is not supported, please do not transfer',
                 referrer_placeholder: 'Enter referrer Discord ID or name',
-                upgrade_hint: 'Please complete the transfer, then paste the tx hash to confirm. Solana is not supported.',
+                referrer_bonus_text: 'Fill referrer for +5 days membership time, and referrer gets +10 days.',
                 price_suffix: '/ 30 days',
                 btn_submit: 'Submit',
                 btn_close: 'Close',
@@ -967,9 +994,10 @@
                 label_address: '收款地址',
                 label_hash: '交易 Hash',
                 label_referrer: '推荐人',
-                hash_placeholder: '请粘贴交易 Hash',
-                referrer_placeholder: '输入推荐人Discord ID或用户名',
-                upgrade_hint: '请先完成转账，然后复制交易 Hash 在这里提交确认。Solana 暂不支持，请不要充值。',
+                hash_placeholder: '请先完成转账，然后复制交易 Hash 在这里提交确认',
+                hash_placeholder_solana: 'Solana 暂不支持，请不要充值',
+                referrer_placeholder: '输入推荐人 Discord ID 或名字',
+                referrer_bonus_text: '填写推荐人额外赠送 5 天会员时间，推荐人赠送 10 天会员时间',
                 price_suffix: '/ 30天',
                 btn_submit: '提交',
                 btn_close: '关闭',
@@ -1091,9 +1119,8 @@
             setText('upgrade-label-address', t('label_address'));
             setText('upgrade-label-hash', t('label_hash'));
             setText('upgrade-label-referrer', t('label_referrer'));
-            const referrerTip = document.getElementById('upgrade-referrer-tip');
-            if (referrerTip) referrerTip.title = t('status_referrer_locked');
-            setText('upgrade-hint', t('upgrade_hint'));
+            setText('upgrade-referrer-tip-text', t('status_referrer_locked'));
+            setText('upgrade-referrer-bonus', t('referrer_bonus_text'));
             setText('upgrade-network-eth', `${t('network_eth')} (${t('recommended')})`);
             setText('upgrade-network-bnb', t('network_bnb'));
             setText('upgrade-network-arb', t('network_arbitrum'));
@@ -1101,7 +1128,11 @@
             const guideLink = document.getElementById('upgrade-guide-link');
             if (guideLink) guideLink.title = t('upgrade_guide_title');
             const hashInput = document.getElementById('upgrade-hash');
-            if (hashInput) hashInput.placeholder = t('hash_placeholder');
+            if (hashInput) {
+                const netEl = document.getElementById('upgrade-network');
+                const chain = netEl ? netEl.value : 'ethereum';
+                hashInput.placeholder = chain === 'solana' ? t('hash_placeholder_solana') : t('hash_placeholder');
+            }
             const referrerInput = document.getElementById('upgrade-referrer');
             if (referrerInput) referrerInput.placeholder = t('referrer_placeholder');
             const submitBtn = document.getElementById('upgrade-submit');
@@ -2338,6 +2369,9 @@
                 const addr = (config && config.addresses && config.addresses[chain]) || UPGRADE_ADDRESSES[chain] || '-';
                 addressEl.textContent = addr;
                 if (recommendEl) recommendEl.textContent = '';
+                if (hashEl) {
+                    hashEl.placeholder = chain === 'solana' ? t('hash_placeholder_solana') : t('hash_placeholder');
+                }
             };
             const ensureOrderToken = async () => {
                 if (!planEl || !netEl || !statusEl || !statusText) return;

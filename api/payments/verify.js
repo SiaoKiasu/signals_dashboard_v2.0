@@ -264,6 +264,16 @@ async function rewardReferrer(db, referrerId) {
   return { rewarded: true, tier, membership: result.membership };
 }
 
+async function rewardBuyerByReferral(buyerId, tier) {
+  if (tier !== "pro" && tier !== "ultra") return { rewarded: false, reason: "buyer_tier_not_supported" };
+  const result = await applyMembershipChange(buyerId, {
+    tier,
+    days: 5,
+    is_upgrade: false,
+  });
+  return { rewarded: true, tier, membership: result.membership };
+}
+
 async function reservePaymentTx(db, { network, txHash, discordUserId, plan, note }) {
   const paymentId = buildPaymentId(network, txHash);
   try {
@@ -515,7 +525,12 @@ module.exports = async (req, res) => {
             if (referrer) {
               try {
                 const referrerId = String(referrer._id || referrer.discord_user_id || "");
-                referralReward = await rewardReferrer(db, referrerId);
+                const referrerReward = await rewardReferrer(db, referrerId);
+                const buyerReward = await rewardBuyerByReferral(id, plan);
+                referralReward = {
+                  referrer: referrerReward,
+                  buyer_bonus: buyerReward,
+                };
               } catch {
                 referralReward = { rewarded: false, reason: "reward_failed" };
               }
@@ -658,7 +673,12 @@ module.exports = async (req, res) => {
         if (referrer) {
           try {
             const referrerId = String(referrer._id || referrer.discord_user_id || "");
-            referralReward = await rewardReferrer(db, referrerId);
+            const referrerReward = await rewardReferrer(db, referrerId);
+            const buyerReward = await rewardBuyerByReferral(id, plan);
+            referralReward = {
+              referrer: referrerReward,
+              buyer_bonus: buyerReward,
+            };
           } catch {
             referralReward = { rewarded: false, reason: "reward_failed" };
           }
