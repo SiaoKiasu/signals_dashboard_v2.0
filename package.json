@@ -2,6 +2,10 @@
   "name": "sl-bro-portal",
   "private": true,
   "type": "commonjs",
+  "scripts": {
+    "backfill:payments:dry": "node scripts/backfill-payments.js --dry-run",
+    "backfill:payments": "node scripts/backfill-payments.js"
+  },
   "dependencies": {
     "mongodb": "^6.20.0"
   }
