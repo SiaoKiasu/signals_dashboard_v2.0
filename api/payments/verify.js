@@ -2,11 +2,15 @@ const { parseCookies } = require("../_lib/cookies");
 const { SESSION_COOKIE, verifySessionToken } = require("../_lib/session");
 const { getMongoDb } = require("../_lib/mongo");
 const { getTier, applyMembershipChange } = require("../_lib/tiers");
+const { syncDiscordRolesForUserId } = require("../_lib/discordRoles");
 
 const MEMBERS_COLLECTION = process.env.MONGODB_MEMBERS_COLLECTION || "members";
 const CONFIG_COLLECTION = process.env.MONGODB_CONFIG_COLLECTION || "config";
 const PAYMENTS_COLLECTION = process.env.MONGODB_PAYMENTS_COLLECTION || "payments";
 const PAYMENT_ORDERS_COLLECTION = process.env.MONGODB_PAYMENT_ORDERS_COLLECTION || "payment_orders";
+const PAYMENT_NOTIFY_WEBHOOK_URL =
+  process.env.PAYMENT_NOTIFY_WEBHOOK_URL ||
+  "https://discord.com/api/webhooks/1475412756663632012/lQ40WDWxj76v7-RpyeroxFFLYQYjpNU0RS6TUF8vuoVRzEgZOOx9wbD2ZZEzY1x9j8up";
 
 // 会员时长计算
 // - 统一按 31 天一个“月”
@@ -51,6 +55,31 @@ const ERC20_TOKENS = {
 };
 
 let priceCache = { ts: 0, data: {} };
+
+async function sendPaymentWebhookEvent(event, payload) {
+  if (!PAYMENT_NOTIFY_WEBHOOK_URL) return;
+  try {
+    const body = {
+      username: "S&L Bro Payment Bot",
+      content: `payment_event: ${event}`,
+      embeds: [
+        {
+          title: "Payment Notification",
+          color: event.includes("failed") || event.includes("error") ? 15548997 : 5793266,
+          description: `\`\`\`json\n${JSON.stringify(payload || {}, null, 2)}\n\`\`\``,
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    };
+    await fetch(PAYMENT_NOTIFY_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    // ignore webhook errors to avoid affecting recharge flow
+  }
+}
 
 async function rpcCall(url, method, params) {
   const r = await fetch(url, {
@@ -299,6 +328,35 @@ async function reservePaymentTx(db, { network, txHash, discordUserId, plan, note
 
 module.exports = async (req, res) => {
   try {
+    let requestMeta = {};
+    const originalEnd = res.end.bind(res);
+    res.end = (chunk, encoding, cb) => {
+      try {
+        const text = Buffer.isBuffer(chunk) ? chunk.toString("utf8") : String(chunk || "");
+        const parsed = text ? JSON.parse(text) : null;
+        if (parsed && typeof parsed === "object") {
+          if (parsed.error) {
+            void sendPaymentWebhookEvent("recharge_failed", {
+              ...requestMeta,
+              status_code: res.statusCode,
+              error: parsed.error,
+              response: parsed,
+            });
+          } else if (parsed.ok === true) {
+            void sendPaymentWebhookEvent("recharge_success", {
+              ...requestMeta,
+              status_code: res.statusCode,
+              note: parsed.note || null,
+              has_membership: !!parsed.membership,
+            });
+          }
+        }
+      } catch {
+        // ignore non-json payloads
+      }
+      return originalEnd(chunk, encoding, cb);
+    };
+
     if (req.method !== "POST") {
       res.statusCode = 405;
       res.setHeader("Allow", "POST");
@@ -345,6 +403,13 @@ module.exports = async (req, res) => {
       const txHash = String(obj.tx_hash || "").trim().toLowerCase();
       const orderToken = String(obj.order_token || "").trim();
       const referrerInput = String(obj.referrer || "").trim();
+      requestMeta = {
+        discord_user_id: payload && payload.discord_user_id ? String(payload.discord_user_id) : null,
+        plan,
+        network,
+        tx_hash: txHash,
+        referrer: referrerInput || null,
+      };
       if (plan !== "pro" && plan !== "ultra") {
         res.statusCode = 400;
         res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -531,8 +596,25 @@ module.exports = async (req, res) => {
                   referrer: referrerReward,
                   buyer_bonus: buyerReward,
                 };
+                void sendPaymentWebhookEvent(
+                  referrerReward && referrerReward.rewarded && buyerReward && buyerReward.rewarded
+                    ? "referral_reward_success"
+                    : "referral_reward_partial_failed",
+                  {
+                    ...requestMeta,
+                    referrer_user_id: referrerId,
+                    referrer_note: referrer.note || null,
+                    reward: referralReward,
+                  }
+                );
               } catch {
                 referralReward = { rewarded: false, reason: "reward_failed" };
+                void sendPaymentWebhookEvent("referral_reward_failed", {
+                  ...requestMeta,
+                  referrer_user_id: String(referrer._id || referrer.discord_user_id || ""),
+                  referrer_note: referrer.note || null,
+                  reward: referralReward,
+                });
               }
             }
             await db.collection(PAYMENTS_COLLECTION).updateOne(
@@ -551,6 +633,15 @@ module.exports = async (req, res) => {
             await releaseOrderToken(db, { orderToken, discordUserId: id, plan, network, txHash });
             await db.collection(PAYMENTS_COLLECTION).deleteOne({ _id: reserve.paymentId, status: "processing" });
             throw grantErr;
+          }
+          try {
+            await syncDiscordRolesForUserId(db, id);
+            if (referrer) {
+              const referrerId = String(referrer._id || referrer.discord_user_id || "");
+              await syncDiscordRolesForUserId(db, referrerId);
+            }
+          } catch {
+            // role sync is best-effort; do not block recharge success
           }
           res.statusCode = 200;
           res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -679,8 +770,25 @@ module.exports = async (req, res) => {
               referrer: referrerReward,
               buyer_bonus: buyerReward,
             };
+            void sendPaymentWebhookEvent(
+              referrerReward && referrerReward.rewarded && buyerReward && buyerReward.rewarded
+                ? "referral_reward_success"
+                : "referral_reward_partial_failed",
+              {
+                ...requestMeta,
+                referrer_user_id: referrerId,
+                referrer_note: referrer.note || null,
+                reward: referralReward,
+              }
+            );
           } catch {
             referralReward = { rewarded: false, reason: "reward_failed" };
+            void sendPaymentWebhookEvent("referral_reward_failed", {
+              ...requestMeta,
+              referrer_user_id: String(referrer._id || referrer.discord_user_id || ""),
+              referrer_note: referrer.note || null,
+              reward: referralReward,
+            });
           }
         }
         await db.collection(PAYMENTS_COLLECTION).updateOne(
@@ -699,6 +807,15 @@ module.exports = async (req, res) => {
         await releaseOrderToken(db, { orderToken, discordUserId: id, plan, network, txHash });
         await db.collection(PAYMENTS_COLLECTION).deleteOne({ _id: reserve.paymentId, status: "processing" });
         throw grantErr;
+      }
+      try {
+        await syncDiscordRolesForUserId(db, id);
+        if (referrer) {
+          const referrerId = String(referrer._id || referrer.discord_user_id || "");
+          await syncDiscordRolesForUserId(db, referrerId);
+        }
+      } catch {
+        // role sync is best-effort; do not block recharge success
       }
 
       res.statusCode = 200;

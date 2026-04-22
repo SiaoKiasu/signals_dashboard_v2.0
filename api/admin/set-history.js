@@ -1,4 +1,5 @@
 const { getMongoDb } = require("../_lib/mongo");
+const { syncDiscordRolesForAllMembers, isSyncEnabled } = require("../_lib/discordRoles");
 
 const HISTORY_COLLECTION = process.env.MONGODB_HISTORY_COLLECTION || "portal_data";
 const HISTORY_DOC_ID = process.env.MONGODB_HISTORY_DOC_ID || "signal_history";
@@ -13,13 +14,6 @@ function normalizeSignalListShape(obj) {
 }
 
 module.exports = async (req, res) => {
-  const adminSecret = process.env.ADMIN_SECRET;
-  if (!adminSecret) {
-    res.statusCode = 500;
-    res.setHeader("Content-Type", "application/json; charset=utf-8");
-    res.end(JSON.stringify({ error: "missing_env", need: ["ADMIN_SECRET"] }));
-    return;
-  }
   const db = await getMongoDb();
   if (!db) {
     res.statusCode = 500;
@@ -28,18 +22,55 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const provided = (req.headers["x-admin-secret"] || "").toString();
-  if (provided !== adminSecret) {
-    res.statusCode = 403;
+  if (req.method === "GET") {
+    const cronSecret = process.env.CRON_SECRET || "";
+    if (!cronSecret) {
+      res.statusCode = 500;
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.end(JSON.stringify({ error: "missing_env", need: ["CRON_SECRET"] }));
+      return;
+    }
+    const provided =
+      String(req.headers["x-cron-secret"] || "").trim() ||
+      String(req.headers.authorization || "").replace(/^Bearer\s+/i, "").trim();
+    if (provided !== cronSecret) {
+      res.statusCode = 403;
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.end(JSON.stringify({ error: "forbidden" }));
+      return;
+    }
+    if (!isSyncEnabled()) {
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.end(JSON.stringify({ ok: true, skipped: "sync_disabled" }));
+      return;
+    }
+    const stats = await syncDiscordRolesForAllMembers(db, 0);
+    res.statusCode = 200;
     res.setHeader("Content-Type", "application/json; charset=utf-8");
-    res.end(JSON.stringify({ error: "forbidden" }));
+    res.end(JSON.stringify({ ok: true, task: "sync_discord_roles", stats }));
     return;
   }
 
   if (req.method !== "POST") {
     res.statusCode = 405;
-    res.setHeader("Allow", "POST");
+    res.setHeader("Allow", "GET, POST");
     res.end("Method Not Allowed");
+    return;
+  }
+
+  const adminSecret = process.env.ADMIN_SECRET;
+  if (!adminSecret) {
+    res.statusCode = 500;
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.end(JSON.stringify({ error: "missing_env", need: ["ADMIN_SECRET"] }));
+    return;
+  }
+  const provided = (req.headers["x-admin-secret"] || "").toString();
+  if (provided !== adminSecret) {
+    res.statusCode = 403;
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.end(JSON.stringify({ error: "forbidden" }));
     return;
   }
 
