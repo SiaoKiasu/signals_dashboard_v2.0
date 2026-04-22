@@ -8,9 +8,7 @@ const MEMBERS_COLLECTION = process.env.MONGODB_MEMBERS_COLLECTION || "members";
 const CONFIG_COLLECTION = process.env.MONGODB_CONFIG_COLLECTION || "config";
 const PAYMENTS_COLLECTION = process.env.MONGODB_PAYMENTS_COLLECTION || "payments";
 const PAYMENT_ORDERS_COLLECTION = process.env.MONGODB_PAYMENT_ORDERS_COLLECTION || "payment_orders";
-const PAYMENT_NOTIFY_WEBHOOK_URL =
-  process.env.PAYMENT_NOTIFY_WEBHOOK_URL ||
-  "https://discord.com/api/webhooks/1475412756663632012/lQ40WDWxj76v7-RpyeroxFFLYQYjpNU0RS6TUF8vuoVRzEgZOOx9wbD2ZZEzY1x9j8up";
+const PAYMENT_NOTIFY_WEBHOOK_URL = process.env.PAYMENT_NOTIFY_WEBHOOK_URL || "";
 
 // 会员时长计算
 // - 统一按 31 天一个“月”

@@ -1,4 +1,4 @@
-const { sendJson, requireApiKey, toDateKey, fetchJson } = require("./_lib");
+const { sendJson, requireApiKey, toDateKey, fetchJson } = require("../../lib/market");
 
 const ETF_SYMBOLS = {
   BTC: "https://open-api-v4.coinglass.com/api/etf/bitcoin/flow-history",
