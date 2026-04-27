@@ -594,7 +594,7 @@
         .account-table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 520px;
+            min-width: 760px;
         }
         .account-table th,
         .account-table td {
@@ -1087,7 +1087,8 @@
                 account_side: 'Side',
                 account_pnl: 'PnL',
                 account_trade_return: 'Return',
-                account_time: 'Time',
+                account_open_time: 'Open Time',
+                account_close_time: 'Close Time',
                 account_status: 'Status',
                 account_days_unit: 'days',
                 account_side_long: 'LONG',
@@ -1218,7 +1219,8 @@
                 account_side: '方向',
                 account_pnl: '盈亏',
                 account_trade_return: '收益率',
-                account_time: '时间',
+                account_open_time: '开仓时间',
+                account_close_time: '平仓时间',
                 account_status: '状态',
                 account_days_unit: '天',
                 account_side_long: '多',
@@ -1678,7 +1680,8 @@
                 <table class="account-table">
                     <thead>
                         <tr>
-                            <th>${t('account_time')}</th>
+                            <th>${t('account_open_time')}</th>
+                            <th>${t('account_close_time')}</th>
                             <th>${t('account_symbol')}</th>
                             <th>${t('account_side')}</th>
                             <th>${t('account_pnl')}</th>
@@ -1693,7 +1696,8 @@
                             const ret = Number(item.return);
                             return `
                                 <tr>
-                                    <td>${item.time || '-'}</td>
+                                    <td>${item.open_time || '-'}</td>
+                                    <td>${item.close_time || '-'}</td>
                                     <td>${item.symbol || '-'}</td>
                                     <td><span class="account-side ${side === 'short' ? 'short' : 'long'}">${side === 'short' ? t('account_side_short') : t('account_side_long')}</span></td>
                                     <td style="color:${Number.isFinite(pnl) && pnl >= 0 ? '#26a69a' : '#f23645'};">${Number.isFinite(pnl) ? formatUsdValue(pnl) : '-'}</td>
