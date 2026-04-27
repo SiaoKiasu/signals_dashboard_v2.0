@@ -6,8 +6,7 @@ const DISCORD_MEMBER_PRO_ID = process.env.DISCORD_MEMBER_PRO_ID || "";
 const DISCORD_MEMBER_ULTRA_ID = process.env.DISCORD_MEMBER_ULTRA_ID || "";
 
 function isSyncEnabled() {
-  const v = String(process.env.SYNC_DISCORD_MEMBER_ROLES || "").trim().toLowerCase();
-  return v === "1" || v === "true" || v === "yes" || v === "on";
+  return true;
 }
 
 function hasDiscordRoleConfig() {
