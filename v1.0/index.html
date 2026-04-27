@@ -502,7 +502,13 @@
         }
         .account-panel-equity { grid-area: equity; }
         .account-panel-returns { grid-area: returns; }
-        .account-panel-overview { grid-area: overview; padding: 16px; }
+        .account-panel {
+            min-height: 320px;
+            height: 36vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .account-panel-overview { grid-area: overview; padding: 16px; overflow: auto; }
         .account-panel-history { grid-area: history; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
         .account-head {
             display: flex;
@@ -535,12 +541,6 @@
             font-size: 12px;
             margin-top: 4px;
         }
-        .account-updated {
-            color: #787b86;
-            font-size: 11px;
-            text-align: right;
-            white-space: nowrap;
-        }
         .account-kpis {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -571,6 +571,8 @@
         .account-kpi .value.positive { color: #26a69a; }
         .account-kpi .value.negative { color: #f23645; }
         .account-table-wrap {
+            flex: 1;
+            min-height: 0;
             overflow: auto;
             border-radius: 10px;
             border: 1px solid rgba(255,255,255,0.06);
@@ -915,18 +917,17 @@
                 <div class="account-grid">
                     <div id="chart-account-equity" class="account-panel account-chart account-panel-equity"></div>
                     <div id="chart-account-return" class="account-panel account-chart account-panel-returns"></div>
-                    <div class="account-panel account-panel-overview">
+                    <div class="account-panel account-panel-overview" id="account-overview-panel">
                         <div class="account-head">
                             <div>
                                 <div class="account-badge" id="account-badge">BINANCE</div>
                                 <div class="account-name" id="account-name">Main Account</div>
                                 <div class="account-caption" id="account-caption">Futures performance snapshot</div>
                             </div>
-                            <div class="account-updated" id="account-updated">Updated: -</div>
                         </div>
                         <div class="account-kpis" id="account-kpis"></div>
                     </div>
-                    <div class="account-panel account-panel-history">
+                    <div class="account-panel account-panel-history" id="account-history-panel">
                         <div class="metrics-head">
                             <div class="mh1" id="account-history-title">Trade History</div>
                             <div class="mh2" id="account-history-sub">Recent closed trades</div>
@@ -1062,18 +1063,17 @@
                 market_sub: 'Live Data',
                 account_title: 'Binance Account Dashboard',
                 account_sub: 'Performance Overview',
-                account_caption: 'Futures performance snapshot',
-                account_updated: 'Updated: {time}',
+                account_caption: 'Subaccount performance snapshot',
                 account_history_title: 'Trade History',
                 account_history_sub: 'Recent closed trades',
                 account_equity_curve: 'Equity Curve',
                 account_return_curve: 'Return Curve',
                 account_equity: 'Equity',
+                account_initial_capital: 'Initial Capital',
                 account_total_return: 'Total Return',
                 account_drawdown: 'Max Drawdown',
                 account_win_rate: 'Win Rate',
                 account_trading_days: 'Trading Days',
-                account_avg_leverage: 'Average Leverage',
                 account_symbol: 'Symbol',
                 account_side: 'Side',
                 account_pnl: 'PnL',
@@ -1085,6 +1085,7 @@
                 account_side_short: 'SHORT',
                 account_closed: 'Closed',
                 account_no_history: 'No trade history',
+                portal_lock_ultra: 'This section is available to ULTRA members only.',
                 indicators_title: 'Market Indicators',
                 indicators_sub: 'Historical Data',
                 signals_title: 'Signals',
@@ -1194,18 +1195,17 @@
                 market_sub: '实时数据',
                 account_title: '账户看板（模板，非真实数据）',
                 account_sub: '账户表现总览',
-                account_caption: '合约账户表现快照',
-                account_updated: '更新时间：{time}',
+                account_caption: '永续合约子账户表现快照',
                 account_history_title: '交易记录',
                 account_history_sub: '最近平仓记录',
                 account_equity_curve: 'Equity 曲线',
                 account_return_curve: '收益率曲线',
                 account_equity: '账户权益',
+                account_initial_capital: '初始资金',
                 account_total_return: '累计收益率',
                 account_drawdown: '最大回撤',
                 account_win_rate: '胜率',
                 account_trading_days: '交易天数',
-                account_avg_leverage: '持仓平均杠杆率',
                 account_symbol: '交易对',
                 account_side: '方向',
                 account_pnl: '盈亏',
@@ -1217,6 +1217,7 @@
                 account_side_short: '空',
                 account_closed: '已平仓',
                 account_no_history: '暂无交易记录',
+                portal_lock_ultra: '该内容仅对 ULTRA 会员开放。',
                 indicators_title: '市场指标',
                 indicators_sub: '历史数据',
                 signals_title: '信号',
@@ -1539,14 +1540,14 @@
             updated_at: '2026-04-27T08:00:00Z',
             account: {
                 exchange: 'Binance',
-                account_name: 'Main Futures',
+                account_name: 'Subaccount Perps',
                 equity_currency: 'USDT',
                 equity: 35241.82,
+                initial_capital: 27435.00,
                 total_return: 0.2846,
                 max_drawdown: -0.0817,
                 win_rate: 0.618,
-                trading_days: 127,
-                avg_leverage: 3.84
+                trading_days: 127
             },
             equity_curve: [
                 { date: '2026-04-15', equity: 31240.15, return: 0.156 },
@@ -1656,19 +1657,17 @@
             const account = payload && payload.account ? payload.account : {};
             const badgeEl = document.getElementById('account-badge');
             const nameEl = document.getElementById('account-name');
-            const updatedEl = document.getElementById('account-updated');
             const kpisEl = document.getElementById('account-kpis');
             if (badgeEl) badgeEl.textContent = String(account.exchange || 'BINANCE').toUpperCase();
-            if (nameEl) nameEl.textContent = account.account_name || 'Main Futures';
-            if (updatedEl) updatedEl.textContent = t('account_updated', { time: formatAccountTimestamp(payload && payload.updated_at) });
+            if (nameEl) nameEl.textContent = account.account_name || 'Subaccount Perps';
             if (!kpisEl) return;
             const cards = [
                 { label: t('account_equity'), value: formatUsdValue(account.equity), sub: account.equity_currency || 'USDT' },
-                { label: t('account_total_return'), value: formatSignedPercent(account.total_return, 2), className: Number(account.total_return) >= 0 ? 'positive' : 'negative' },
+                { label: t('account_initial_capital'), value: formatUsdValue(account.initial_capital), sub: account.equity_currency || 'USDT' },
                 { label: t('account_drawdown'), value: formatSignedPercent(account.max_drawdown, 2), className: Number(account.max_drawdown) >= 0 ? 'positive' : 'negative' },
+                { label: t('account_total_return'), value: formatSignedPercent(account.total_return, 2), className: Number(account.total_return) >= 0 ? 'positive' : 'negative' },
                 { label: t('account_win_rate'), value: formatPercent(account.win_rate, 1) },
-                { label: t('account_trading_days'), value: Number.isFinite(Number(account.trading_days)) ? String(account.trading_days) : '-', sub: t('account_days_unit') },
-                { label: t('account_avg_leverage'), value: Number.isFinite(Number(account.avg_leverage)) ? `${Number(account.avg_leverage).toFixed(2)}x` : '-' }
+                { label: t('account_trading_days'), value: Number.isFinite(Number(account.trading_days)) ? String(account.trading_days) : '-', sub: t('account_days_unit') }
             ];
             kpisEl.innerHTML = cards.map(item => `
                 <div class="account-kpi">
@@ -2325,6 +2324,29 @@
             }
         }
 
+        function setPanelLock(panelId, show, html) {
+            const panel = document.getElementById(panelId);
+            if (!panel) return;
+            let mask = panel.querySelector('.portal-lock-mask');
+            if (!show) {
+                if (mask) mask.remove();
+                return;
+            }
+            if (!mask) {
+                mask = document.createElement('div');
+                mask.className = 'portal-lock-mask';
+                panel.appendChild(mask);
+            }
+            mask.innerHTML = html;
+            const upgradeBtn = mask.querySelector('[data-action="upgrade"]');
+            if (upgradeBtn) {
+                upgradeBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    openUpgradeModal();
+                };
+            }
+        }
+
         function applyPortalAccess() {
             const tier = getUserTier();
             const allowMarket = canViewMarket(tier);
@@ -2342,9 +2364,17 @@
                     <button class="lock-btn" data-action="upgrade">${t('portal_lock_upgrade_btn')}</button>
                 </div>
             `;
+            const ultraHtml = `
+                <div>
+                    <div>${t('portal_lock_ultra')}</div>
+                    <button class="lock-btn" data-action="upgrade">${t('portal_lock_upgrade_btn')}</button>
+                </div>
+            `;
 
             setPortalCardLock('portal-market-card', !allowMarket, loginHtml);
-            setPortalCardLock('portal-account-card', !allowMarket, loginHtml);
+            setPortalCardLock('portal-account-card', false, '');
+            setPanelLock('account-overview-panel', !allowPro, allowMarket ? proHtml : loginHtml);
+            setPanelLock('account-history-panel', tier !== 'ultra', allowMarket ? ultraHtml : loginHtml);
             setPortalCardLock('portal-indicators-card', !allowPro, allowMarket ? proHtml : loginHtml);
             setPortalCardLock('portal-signals-card', !allowPro, allowMarket ? proHtml : loginHtml);
             setPortalCardLock('portal-whales-card', !allowPro, allowMarket ? proHtml : loginHtml);

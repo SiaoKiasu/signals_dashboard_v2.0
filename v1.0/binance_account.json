@@ -2,14 +2,14 @@
   "updated_at": "2026-04-27T08:00:00Z",
   "account": {
     "exchange": "Binance",
-    "account_name": "Main Futures",
+    "account_name": "Subaccount Perps",
     "equity_currency": "USDT",
     "equity": 35241.82,
+    "initial_capital": 27435.0,
     "total_return": 0.2846,
     "max_drawdown": -0.0817,
     "win_rate": 0.618,
-    "trading_days": 127,
-    "avg_leverage": 3.84
+    "trading_days": 127
   },
   "equity_curve": [
     { "date": "2026-04-15", "equity": 31240.15, "return": 0.1560 },
