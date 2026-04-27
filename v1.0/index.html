@@ -1719,8 +1719,10 @@
                             const side = String(item.side || '').toLowerCase();
                             const pnl = Number(item.pnl);
                             const ret = Number(item.return);
-                            const openAvg = Number(item.open_avg_price);
-                            const closeAvg = Number(item.close_avg_price);
+                            const openAvg = item.open_avg_price == null ? null : Number(item.open_avg_price);
+                            const closeAvg = item.close_avg_price == null ? null : Number(item.close_avg_price);
+                            const closedQty = item.closed_qty == null ? null : Number(item.closed_qty);
+                            const hasClose = Number.isFinite(closedQty) ? closedQty > 0 : !!(item.close_time && item.close_time !== '-');
                             const priceRef = Math.max(
                                 Number.isFinite(openAvg) ? Math.abs(openAvg) : 0,
                                 Number.isFinite(closeAvg) ? Math.abs(closeAvg) : 0
@@ -1730,11 +1732,11 @@
                                     <td>${item.open_time || '-'}</td>
                                     <td>${item.close_time || '-'}</td>
                                     <td>${Number.isFinite(openAvg) ? formatTradeAveragePrice(openAvg, priceRef) : '-'}</td>
-                                    <td>${Number.isFinite(closeAvg) ? formatTradeAveragePrice(closeAvg, priceRef) : '-'}</td>
+                                    <td>${hasClose && Number.isFinite(closeAvg) ? formatTradeAveragePrice(closeAvg, priceRef) : '-'}</td>
                                     <td>${item.symbol || '-'}</td>
                                     <td><span class="account-side ${side === 'short' ? 'short' : 'long'}">${side === 'short' ? t('account_side_short') : t('account_side_long')}</span></td>
-                                    <td style="color:${Number.isFinite(pnl) && pnl >= 0 ? '#26a69a' : '#f23645'};">${Number.isFinite(pnl) ? formatUsdValue(pnl) : '-'}</td>
-                                    <td style="color:${Number.isFinite(ret) && ret >= 0 ? '#26a69a' : '#f23645'};">${Number.isFinite(ret) ? formatSignedPercent(ret, 2) : '-'}</td>
+                                    <td style="color:${hasClose && Number.isFinite(pnl) && pnl >= 0 ? '#26a69a' : '#f23645'};">${hasClose && Number.isFinite(pnl) ? formatUsdValue(pnl) : '-'}</td>
+                                    <td style="color:${hasClose && Number.isFinite(ret) && ret >= 0 ? '#26a69a' : '#f23645'};">${hasClose && Number.isFinite(ret) ? formatSignedPercent(ret, 2) : '-'}</td>
                                     <td>${item.status || t('account_closed')}</td>
                                 </tr>
                             `;
