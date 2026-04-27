@@ -1,6 +1,5 @@
 const { getMongoDb } = require("../_lib/mongo");
 const { syncDiscordRolesForAllMembers, isSyncEnabled } = require("../_lib/discordRoles");
-const { hasBinanceAccountConfig, fetchAndStoreBinanceAccountSnapshot } = require("../../lib/binanceAccount");
 
 const HISTORY_COLLECTION = process.env.MONGODB_HISTORY_COLLECTION || "portal_data";
 const HISTORY_DOC_ID = process.env.MONGODB_HISTORY_DOC_ID || "signal_history";
@@ -47,26 +46,7 @@ module.exports = async (req, res) => {
       const stats = await syncDiscordRolesForAllMembers(db, 0);
       tasks.discord_role_sync = { ok: true, stats };
     }
-    if (hasBinanceAccountConfig()) {
-      try {
-        const snapshot = await fetchAndStoreBinanceAccountSnapshot(db);
-        tasks.binance_account_snapshot = {
-          ok: true,
-          updated_at: snapshot.updated_at || null,
-          curve_points: Array.isArray(snapshot.equity_curve) ? snapshot.equity_curve.length : 0,
-          trades: Array.isArray(snapshot.trades) ? snapshot.trades.length : 0,
-        };
-      } catch (e) {
-        console.error("[binance-account-snapshot] refresh failed:", e);
-        tasks.binance_account_snapshot = {
-          ok: false,
-          error: String(e && e.message ? e.message : e),
-        };
-      }
-    } else {
-      console.error("[binance-account-snapshot] missing BINANCE_API_KEY or BINANCE_API_SECRET");
-      tasks.binance_account_snapshot = { ok: true, skipped: "missing_binance_env" };
-    }
+    tasks.binance_account_snapshot = { ok: true, skipped: "use_local_sync_script" };
     res.statusCode = 200;
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.end(JSON.stringify({ ok: true, task: "maintenance", tasks }));

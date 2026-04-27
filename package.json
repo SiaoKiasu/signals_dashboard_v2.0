@@ -5,7 +5,8 @@
   "scripts": {
     "backfill:payments:dry": "node scripts/backfill-payments.js --dry-run",
     "backfill:payments": "node scripts/backfill-payments.js",
-    "discord:role:test": "node scripts/discord-role-test.js"
+    "discord:role:test": "node scripts/discord-role-test.js",
+    "binance:sync": "node scripts/sync-binance-account.js"
   },
   "dependencies": {
     "mongodb": "^6.20.0"
