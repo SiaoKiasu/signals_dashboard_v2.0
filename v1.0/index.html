@@ -1655,7 +1655,7 @@
                 { label: t('account_drawdown'), value: formatSignedPercent(account.max_drawdown, 2), className: Number(account.max_drawdown) >= 0 ? 'positive' : 'negative' },
                 { label: t('account_total_return'), value: formatSignedPercent(account.total_return, 2), className: Number(account.total_return) >= 0 ? 'positive' : 'negative' },
                 { label: t('account_win_rate'), value: formatPercent(account.win_rate, 1) },
-                { label: t('account_trading_days'), value: Number.isFinite(Number(account.trading_days)) ? String(account.trading_days) : '-', sub: t('account_days_unit') }
+                { label: t('account_trading_days'), value: Number.isFinite(Number(account.trading_days)) ? String(account.trading_days) : '-' }
             ];
             kpisEl.innerHTML = cards.map(item => `
                 <div class="account-kpi">
