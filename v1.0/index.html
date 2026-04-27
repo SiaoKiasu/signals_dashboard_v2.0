@@ -474,6 +474,7 @@
         .account-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-auto-rows: minmax(320px, 36vh);
             grid-template-areas:
                 "overview equity"
                 "history returns";
@@ -495,16 +496,17 @@
             background: #151924;
             overflow: hidden;
             position: relative;
+            min-height: 0;
+            height: 100%;
+            box-sizing: border-box;
         }
         .account-chart {
-            min-height: 320px;
-            height: 36vh;
+            min-height: 0;
+            height: 100%;
         }
         .account-panel-equity { grid-area: equity; }
         .account-panel-returns { grid-area: returns; }
         .account-panel {
-            min-height: 320px;
-            height: 36vh;
             display: flex;
             flex-direction: column;
         }
@@ -512,12 +514,8 @@
             grid-area: overview;
             padding: 16px;
             overflow: auto;
-            align-items: center;
         }
         .account-panel-history { grid-area: history; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-        .account-panel-overview > * {
-            width: min(100%, 440px);
-        }
         .account-head {
             display: flex;
             align-items: flex-start;
@@ -1204,6 +1202,7 @@
                 market_sub: '实时数据',
                 account_title: '账户看板',
                 account_sub: '账户表现总览',
+                account_name: '合约子账户3',
                 account_caption: '合约子账户3表现快照',
                 account_history_title: '交易记录',
                 account_history_sub: '最近平仓记录',
@@ -1549,7 +1548,7 @@
             updated_at: null,
             account: {
                 exchange: 'Binance',
-                account_name: 'Subaccount Perps',
+                account_name: '合约子账户3',
                 equity_currency: 'USDT',
                 equity: null,
                 initial_capital: null,
@@ -1647,7 +1646,10 @@
             const nameEl = document.getElementById('account-name');
             const kpisEl = document.getElementById('account-kpis');
             if (badgeEl) badgeEl.textContent = String(account.exchange || 'BINANCE').toUpperCase();
-            if (nameEl) nameEl.textContent = account.account_name || 'Subaccount Perps';
+            if (nameEl) {
+                const rawName = String(account.account_name || '').trim();
+                nameEl.textContent = rawName && rawName !== 'Subaccount Perps' ? rawName : t('account_name');
+            }
             if (!kpisEl) return;
             const cards = [
                 { label: t('account_equity'), value: formatUsdValue(account.equity), sub: account.equity_currency || 'USDT' },
