@@ -1517,6 +1517,25 @@
             return Math.round(value).toLocaleString();
         }
 
+        function pricePrecisionFromReference(referenceValue) {
+            const n = Math.abs(Number(referenceValue));
+            if (!Number.isFinite(n) || n === 0) return 2;
+            if (n >= 100) return 0;
+            if (n >= 0.1) return 2;
+            if (n >= 0.01) return 3;
+            return 4;
+        }
+
+        function formatTradeAveragePrice(value, referenceValue) {
+            const n = Number(value);
+            if (!Number.isFinite(n)) return '-';
+            const digits = pricePrecisionFromReference(referenceValue);
+            return n.toLocaleString(undefined, {
+                minimumFractionDigits: digits,
+                maximumFractionDigits: digits,
+            });
+        }
+
         function formatPercent(value, digits) {
             if (!Number.isFinite(value)) return '-';
             const d = Number.isFinite(digits) ? digits : 2;
@@ -1702,12 +1721,16 @@
                             const ret = Number(item.return);
                             const openAvg = Number(item.open_avg_price);
                             const closeAvg = Number(item.close_avg_price);
+                            const priceRef = Math.max(
+                                Number.isFinite(openAvg) ? Math.abs(openAvg) : 0,
+                                Number.isFinite(closeAvg) ? Math.abs(closeAvg) : 0
+                            );
                             return `
                                 <tr>
                                     <td>${item.open_time || '-'}</td>
                                     <td>${item.close_time || '-'}</td>
-                                    <td>${Number.isFinite(openAvg) ? formatPrice(openAvg) : '-'}</td>
-                                    <td>${Number.isFinite(closeAvg) ? formatPrice(closeAvg) : '-'}</td>
+                                    <td>${Number.isFinite(openAvg) ? formatTradeAveragePrice(openAvg, priceRef) : '-'}</td>
+                                    <td>${Number.isFinite(closeAvg) ? formatTradeAveragePrice(closeAvg, priceRef) : '-'}</td>
                                     <td>${item.symbol || '-'}</td>
                                     <td><span class="account-side ${side === 'short' ? 'short' : 'long'}">${side === 'short' ? t('account_side_short') : t('account_side_long')}</span></td>
                                     <td style="color:${Number.isFinite(pnl) && pnl >= 0 ? '#26a69a' : '#f23645'};">${Number.isFinite(pnl) ? formatUsdValue(pnl) : '-'}</td>
