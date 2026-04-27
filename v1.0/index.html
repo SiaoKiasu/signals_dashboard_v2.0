@@ -471,6 +471,163 @@
             background: #151924;
             position: relative;
         }
+        .account-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+            grid-template-areas:
+                "equity overview"
+                "returns history";
+            gap: 12px;
+        }
+        @media (max-width: 1100px) {
+            .account-grid {
+                grid-template-columns: 1fr;
+                grid-template-areas:
+                    "equity"
+                    "returns"
+                    "overview"
+                    "history";
+            }
+        }
+        .account-panel {
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            background: #151924;
+            overflow: hidden;
+            position: relative;
+        }
+        .account-chart {
+            min-height: 320px;
+            height: 36vh;
+        }
+        .account-panel-equity { grid-area: equity; }
+        .account-panel-returns { grid-area: returns; }
+        .account-panel-overview { grid-area: overview; padding: 16px; }
+        .account-panel-history { grid-area: history; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+        .account-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .account-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(248, 203, 70, 0.22);
+            background: rgba(248, 203, 70, 0.08);
+            color: #f8cb46;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+        .account-name {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 800;
+            margin-top: 8px;
+        }
+        .account-caption {
+            color: #9aa3b2;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+        .account-updated {
+            color: #787b86;
+            font-size: 11px;
+            text-align: right;
+            white-space: nowrap;
+        }
+        .account-kpis {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .account-kpi {
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.06);
+            background: rgba(7, 10, 16, 0.45);
+            padding: 12px;
+        }
+        .account-kpi .label {
+            color: #8f98a8;
+            font-size: 11px;
+            margin-bottom: 8px;
+        }
+        .account-kpi .value {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: 0.2px;
+        }
+        .account-kpi .sub {
+            color: #787b86;
+            font-size: 11px;
+            margin-top: 6px;
+        }
+        .account-kpi .value.positive { color: #26a69a; }
+        .account-kpi .value.negative { color: #f23645; }
+        .account-table-wrap {
+            overflow: auto;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.06);
+            background: rgba(7, 10, 16, 0.35);
+        }
+        .account-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 520px;
+        }
+        .account-table th,
+        .account-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 12px;
+        }
+        .account-table th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: #0f141f;
+            color: #8f98a8;
+            font-weight: 700;
+        }
+        .account-table td {
+            color: #d1d4dc;
+        }
+        .account-table tbody tr:hover {
+            background: rgba(255,255,255,0.03);
+        }
+        .account-side {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 54px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .account-side.long {
+            color: #26a69a;
+            background: rgba(38,166,154,0.12);
+            border: 1px solid rgba(38,166,154,0.24);
+        }
+        .account-side.short {
+            color: #f23645;
+            background: rgba(242,54,69,0.12);
+            border: 1px solid rgba(242,54,69,0.24);
+        }
+        .account-empty {
+            color: #787b86;
+            font-size: 12px;
+            padding: 16px;
+            text-align: center;
+        }
         .chart-select {
             position: absolute;
             top: 8px;
@@ -749,6 +906,37 @@
             </div>
         </div>
 
+        <div class="portal-card" id="portal-account-card">
+            <div class="portal-card-inner">
+                <div class="portal-card-title">
+                    <div class="t1" id="account-title">Binance Account Dashboard</div>
+                    <div class="t2" id="account-sub">Performance Overview</div>
+                </div>
+                <div class="account-grid">
+                    <div id="chart-account-equity" class="account-panel account-chart account-panel-equity"></div>
+                    <div id="chart-account-return" class="account-panel account-chart account-panel-returns"></div>
+                    <div class="account-panel account-panel-overview">
+                        <div class="account-head">
+                            <div>
+                                <div class="account-badge" id="account-badge">BINANCE</div>
+                                <div class="account-name" id="account-name">Main Account</div>
+                                <div class="account-caption" id="account-caption">Futures performance snapshot</div>
+                            </div>
+                            <div class="account-updated" id="account-updated">Updated: -</div>
+                        </div>
+                        <div class="account-kpis" id="account-kpis"></div>
+                    </div>
+                    <div class="account-panel account-panel-history">
+                        <div class="metrics-head">
+                            <div class="mh1" id="account-history-title">Trade History</div>
+                            <div class="mh2" id="account-history-sub">Recent closed trades</div>
+                        </div>
+                        <div class="account-table-wrap" id="account-history-wrap"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         
         <div class="portal-card" id="portal-indicators-card">
             <div class="portal-card-inner">
@@ -872,6 +1060,32 @@
                 header_sub: 'Professional · Integrity · Explore · Growth',
                 market_title: 'Market Snapshot',
                 market_sub: 'Live Data',
+                account_title: 'Binance Account Dashboard',
+                account_sub: 'Performance Overview',
+                account_caption: 'Futures performance snapshot',
+                account_updated: 'Updated: {time}',
+                account_history_title: 'Trade History',
+                account_history_sub: 'Recent closed trades',
+                account_equity_curve: 'Equity Curve',
+                account_return_curve: 'Return Curve',
+                account_equity: 'Equity',
+                account_total_return: 'Total Return',
+                account_drawdown: 'Max Drawdown',
+                account_win_rate: 'Win Rate',
+                account_trading_days: 'Trading Days',
+                account_margin_used: 'Used Margin',
+                account_margin_available: 'Available Margin',
+                account_symbol: 'Symbol',
+                account_side: 'Side',
+                account_pnl: 'PnL',
+                account_trade_return: 'Return',
+                account_time: 'Time',
+                account_status: 'Status',
+                account_days_unit: 'days',
+                account_side_long: 'LONG',
+                account_side_short: 'SHORT',
+                account_closed: 'Closed',
+                account_no_history: 'No trade history',
                 indicators_title: 'Market Indicators',
                 indicators_sub: 'Historical Data',
                 signals_title: 'Signals',
@@ -979,6 +1193,32 @@
                 header_sub: '专业 · 诚信 · 探索 · 成长',
                 market_title: '市场概览',
                 market_sub: '实时数据',
+                account_title: 'Binance 账户看板',
+                account_sub: '账户表现总览',
+                account_caption: '合约账户表现快照',
+                account_updated: '更新时间：{time}',
+                account_history_title: '交易记录',
+                account_history_sub: '最近平仓记录',
+                account_equity_curve: 'Equity 曲线',
+                account_return_curve: '收益率曲线',
+                account_equity: '账户权益',
+                account_total_return: '累计收益率',
+                account_drawdown: '最大回撤',
+                account_win_rate: '胜率',
+                account_trading_days: '交易天数',
+                account_margin_used: '已用保证金',
+                account_margin_available: '可用保证金',
+                account_symbol: '交易对',
+                account_side: '方向',
+                account_pnl: '盈亏',
+                account_trade_return: '收益率',
+                account_time: '时间',
+                account_status: '状态',
+                account_days_unit: '天',
+                account_side_long: '多',
+                account_side_short: '空',
+                account_closed: '已平仓',
+                account_no_history: '暂无交易记录',
                 indicators_title: '市场指标',
                 indicators_sub: '历史数据',
                 signals_title: '信号',
@@ -1105,6 +1345,11 @@
             setText('header-sub', t('header_sub'));
             setText('market-title', t('market_title'));
             setText('market-sub', t('market_sub'));
+            setText('account-title', t('account_title'));
+            setText('account-sub', t('account_sub'));
+            setText('account-caption', t('account_caption'));
+            setText('account-history-title', t('account_history_title'));
+            setText('account-history-sub', t('account_history_sub'));
             setText('indicators-title', t('indicators_title'));
             setText('indicators-sub', t('indicators_sub'));
             setText('signals-title', t('signals_title'));
@@ -1172,6 +1417,7 @@
                 updateMarketMetrics(marketPayloadCache);
                 renderMarketSnapshot();
             }
+            renderBinanceAccountDashboard();
         }
 
         const ALL_SIGNALS = ['signal1', 'signal2', 'signal7', 'signal9', 'signal13', 'signal15', 'signal18'];
@@ -1212,6 +1458,7 @@
         let authRemainTimer = null;
         const chartInstances = {};
         let marketPayloadCache = null;
+        let binanceAccountCache = null;
 
         function normalizeDateKey(dateStr) {
             if (!dateStr) return '';
@@ -1264,6 +1511,70 @@
             const d = Number.isFinite(digits) ? digits : 2;
             return (value * 100).toFixed(d) + '%';
         }
+
+        function formatSignedPercent(value, digits) {
+            if (!Number.isFinite(value)) return '-';
+            const d = Number.isFinite(digits) ? digits : 2;
+            const pct = (value * 100).toFixed(d) + '%';
+            return value > 0 ? `+${pct}` : pct;
+        }
+
+        function formatUsdValue(value) {
+            const n = Number(value);
+            if (!Number.isFinite(n)) return '-';
+            return `$${formatCompactNumber(n, 2)}`;
+        }
+
+        function formatAccountTimestamp(value) {
+            if (!value) return '-';
+            const d = new Date(value);
+            if (Number.isNaN(d.getTime())) return String(value);
+            return d.toLocaleString(currentLang === 'zh' ? 'zh-CN' : 'en-US', {
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        const DEFAULT_BINANCE_ACCOUNT_DATA = {
+            updated_at: '2026-04-27T08:00:00Z',
+            account: {
+                exchange: 'Binance',
+                account_name: 'Main Futures',
+                equity_currency: 'USDT',
+                equity: 35241.82,
+                total_return: 0.2846,
+                max_drawdown: -0.0817,
+                win_rate: 0.618,
+                trading_days: 127,
+                margin_used: 12643.2,
+                margin_available: 22598.62
+            },
+            equity_curve: [
+                { date: '2026-04-15', equity: 31240.15, return: 0.156 },
+                { date: '2026-04-16', equity: 31681.92, return: 0.171 },
+                { date: '2026-04-17', equity: 31422.31, return: 0.163 },
+                { date: '2026-04-18', equity: 32053.44, return: 0.184 },
+                { date: '2026-04-19', equity: 32685.2, return: 0.206 },
+                { date: '2026-04-20', equity: 33124.58, return: 0.219 },
+                { date: '2026-04-21', equity: 32981.14, return: 0.214 },
+                { date: '2026-04-22', equity: 33756.06, return: 0.242 },
+                { date: '2026-04-23', equity: 34381.87, return: 0.261 },
+                { date: '2026-04-24', equity: 34124.33, return: 0.252 },
+                { date: '2026-04-25', equity: 34810.62, return: 0.273 },
+                { date: '2026-04-26', equity: 35096.44, return: 0.281 },
+                { date: '2026-04-27', equity: 35241.82, return: 0.2846 }
+            ],
+            trades: [
+                { time: '2026-04-27 09:12', symbol: 'BTCUSDT', side: 'long', pnl: 284.32, return: 0.0142, status: 'Closed' },
+                { time: '2026-04-26 21:48', symbol: 'ETHUSDT', side: 'short', pnl: -96.5, return: -0.0061, status: 'Closed' },
+                { time: '2026-04-26 14:26', symbol: 'SOLUSDT', side: 'long', pnl: 143.76, return: 0.0118, status: 'Closed' },
+                { time: '2026-04-25 19:31', symbol: 'BTCUSDT', side: 'short', pnl: 352.1, return: 0.0189, status: 'Closed' },
+                { time: '2026-04-25 10:05', symbol: 'BNBUSDT', side: 'long', pnl: -58.42, return: -0.0047, status: 'Closed' },
+                { time: '2026-04-24 16:42', symbol: 'ETHUSDT', side: 'long', pnl: 207.93, return: 0.0131, status: 'Closed' }
+            ]
+        };
 
         function pickLatest(values) {
             if (!Array.isArray(values)) return null;
@@ -1342,6 +1653,164 @@
                 { key: t('metric_etf'), value: etfBtcLatest != null ? formatNumber(etfBtcLatest) : '-', sub: t('metric_etf_sub') },
                 { key: t('metric_fear'), value: fearGreed != null ? String(fearGreed) : '-', sub: t('metric_fear_sub') },
             ];
+        }
+
+        function renderBinanceAccountOverview(payload) {
+            const account = payload && payload.account ? payload.account : {};
+            const badgeEl = document.getElementById('account-badge');
+            const nameEl = document.getElementById('account-name');
+            const updatedEl = document.getElementById('account-updated');
+            const kpisEl = document.getElementById('account-kpis');
+            if (badgeEl) badgeEl.textContent = String(account.exchange || 'BINANCE').toUpperCase();
+            if (nameEl) nameEl.textContent = account.account_name || 'Main Futures';
+            if (updatedEl) updatedEl.textContent = t('account_updated', { time: formatAccountTimestamp(payload && payload.updated_at) });
+            if (!kpisEl) return;
+            const cards = [
+                { label: t('account_equity'), value: formatUsdValue(account.equity), sub: account.equity_currency || 'USDT' },
+                { label: t('account_total_return'), value: formatSignedPercent(account.total_return, 2), className: Number(account.total_return) >= 0 ? 'positive' : 'negative' },
+                { label: t('account_drawdown'), value: formatSignedPercent(account.max_drawdown, 2), className: Number(account.max_drawdown) >= 0 ? 'positive' : 'negative' },
+                { label: t('account_win_rate'), value: formatPercent(account.win_rate, 1) },
+                { label: t('account_trading_days'), value: Number.isFinite(Number(account.trading_days)) ? String(account.trading_days) : '-', sub: t('account_days_unit') },
+                { label: t('account_margin_used'), value: formatUsdValue(account.margin_used) },
+                { label: t('account_margin_available'), value: formatUsdValue(account.margin_available) }
+            ];
+            kpisEl.innerHTML = cards.map(item => `
+                <div class="account-kpi">
+                    <div class="label">${item.label}</div>
+                    <div class="value ${item.className || ''}">${item.value}</div>
+                    ${item.sub ? `<div class="sub">${item.sub}</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function renderBinanceTradeHistory(payload) {
+            const wrap = document.getElementById('account-history-wrap');
+            if (!wrap) return;
+            const trades = Array.isArray(payload && payload.trades) ? payload.trades : [];
+            if (!trades.length) {
+                wrap.innerHTML = `<div class="account-empty">${t('account_no_history')}</div>`;
+                return;
+            }
+            wrap.innerHTML = `
+                <table class="account-table">
+                    <thead>
+                        <tr>
+                            <th>${t('account_time')}</th>
+                            <th>${t('account_symbol')}</th>
+                            <th>${t('account_side')}</th>
+                            <th>${t('account_pnl')}</th>
+                            <th>${t('account_trade_return')}</th>
+                            <th>${t('account_status')}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${trades.map(item => {
+                            const side = String(item.side || '').toLowerCase();
+                            const pnl = Number(item.pnl);
+                            const ret = Number(item.return);
+                            return `
+                                <tr>
+                                    <td>${item.time || '-'}</td>
+                                    <td>${item.symbol || '-'}</td>
+                                    <td><span class="account-side ${side === 'short' ? 'short' : 'long'}">${side === 'short' ? t('account_side_short') : t('account_side_long')}</span></td>
+                                    <td style="color:${Number.isFinite(pnl) && pnl >= 0 ? '#26a69a' : '#f23645'};">${Number.isFinite(pnl) ? formatUsdValue(pnl) : '-'}</td>
+                                    <td style="color:${Number.isFinite(ret) && ret >= 0 ? '#26a69a' : '#f23645'};">${Number.isFinite(ret) ? formatSignedPercent(ret, 2) : '-'}</td>
+                                    <td>${item.status || t('account_closed')}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function renderBinanceEquityChart(payload) {
+            const c = getChart('chart-account-equity');
+            if (!c) return;
+            const curve = Array.isArray(payload && payload.equity_curve) ? payload.equity_curve : [];
+            const dates = curve.map(item => item.date || '');
+            const values = curve.map(item => Number.isFinite(Number(item.equity)) ? Number(item.equity) : null);
+            c.setOption({
+                backgroundColor: 'transparent',
+                title: { text: t('account_equity_curve'), left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
+                tooltip: {
+                    trigger: 'axis',
+                    formatter: (params) => {
+                        if (!params || !params.length) return '';
+                        const p = params[0];
+                        return `<div class="custom-tooltip"><div class="tooltip-header">${p.axisValue || ''}</div><div class="tooltip-row"><span class="tooltip-label">${t('account_equity')}</span><span class="tooltip-value">${formatUsdValue(p.value)}</span></div></div>`;
+                    }
+                },
+                grid: { left: '6%', right: '6%', bottom: '14%', top: '18%', containLabel: true },
+                xAxis: { type: 'category', data: dates, boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', hideOverlap: true } },
+                yAxis: { type: 'value', scale: true, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatUsdValue(v) } },
+                series: [{
+                    name: t('account_equity'),
+                    type: 'line',
+                    data: values,
+                    symbol: 'none',
+                    smooth: true,
+                    areaStyle: { color: 'rgba(41,98,255,0.12)' },
+                    lineStyle: { color: '#2962ff', width: 2 }
+                }]
+            }, { notMerge: true, lazyUpdate: false });
+        }
+
+        function renderBinanceReturnChart(payload) {
+            const c = getChart('chart-account-return');
+            if (!c) return;
+            const curve = Array.isArray(payload && payload.equity_curve) ? payload.equity_curve : [];
+            const dates = curve.map(item => item.date || '');
+            const values = curve.map(item => Number.isFinite(Number(item.return)) ? Number(item.return) : null);
+            c.setOption({
+                backgroundColor: 'transparent',
+                title: { text: t('account_return_curve'), left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
+                tooltip: {
+                    trigger: 'axis',
+                    formatter: (params) => {
+                        if (!params || !params.length) return '';
+                        const p = params[0];
+                        return `<div class="custom-tooltip"><div class="tooltip-header">${p.axisValue || ''}</div><div class="tooltip-row"><span class="tooltip-label">${t('account_total_return')}</span><span class="tooltip-value">${formatSignedPercent(Number(p.value), 2)}</span></div></div>`;
+                    }
+                },
+                grid: { left: '6%', right: '6%', bottom: '14%', top: '18%', containLabel: true },
+                xAxis: { type: 'category', data: dates, boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', hideOverlap: true } },
+                yAxis: { type: 'value', scale: true, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatSignedPercent(v, 1) } },
+                series: [{
+                    name: t('account_total_return'),
+                    type: 'line',
+                    data: values,
+                    symbol: 'none',
+                    smooth: true,
+                    markLine: {
+                        silent: true,
+                        symbol: ['none', 'none'],
+                        label: { show: false },
+                        lineStyle: { color: '#787b86', type: 'dashed', width: 1 },
+                        data: [{ yAxis: 0 }]
+                    },
+                    lineStyle: { color: '#f8cb46', width: 2 }
+                }]
+            }, { notMerge: true, lazyUpdate: false });
+        }
+
+        function renderBinanceAccountDashboard() {
+            if (!binanceAccountCache) return;
+            renderBinanceAccountOverview(binanceAccountCache);
+            renderBinanceTradeHistory(binanceAccountCache);
+            renderBinanceEquityChart(binanceAccountCache);
+            renderBinanceReturnChart(binanceAccountCache);
+        }
+
+        async function loadBinanceAccountDashboard() {
+            try {
+                const r = await fetch('/v1.0/binance_account.json', { credentials: 'same-origin', cache: 'no-store' });
+                if (!r.ok) throw new Error(`account_${r.status}`);
+                binanceAccountCache = await r.json();
+            } catch {
+                binanceAccountCache = DEFAULT_BINANCE_ACCOUNT_DATA;
+            }
+            renderBinanceAccountDashboard();
         }
 
         function getChart(id) {
@@ -1879,6 +2348,7 @@
             `;
 
             setPortalCardLock('portal-market-card', !allowMarket, loginHtml);
+            setPortalCardLock('portal-account-card', !allowMarket, loginHtml);
             setPortalCardLock('portal-indicators-card', !allowPro, allowMarket ? proHtml : loginHtml);
             setPortalCardLock('portal-signals-card', !allowPro, allowMarket ? proHtml : loginHtml);
             setPortalCardLock('portal-whales-card', !allowPro, allowMarket ? proHtml : loginHtml);
@@ -2714,6 +3184,7 @@
         loadData();
         loadMarketCharts();
         loadMarketSnapshotLive();
+        loadBinanceAccountDashboard();
 
         const etfSelect = document.getElementById('etf-symbol-select');
         if (etfSelect) {

@@ -1,0 +1,38 @@
+{
+  "updated_at": "2026-04-27T08:00:00Z",
+  "account": {
+    "exchange": "Binance",
+    "account_name": "Main Futures",
+    "equity_currency": "USDT",
+    "equity": 35241.82,
+    "total_return": 0.2846,
+    "max_drawdown": -0.0817,
+    "win_rate": 0.618,
+    "trading_days": 127,
+    "margin_used": 12643.2,
+    "margin_available": 22598.62
+  },
+  "equity_curve": [
+    { "date": "2026-04-15", "equity": 31240.15, "return": 0.1560 },
+    { "date": "2026-04-16", "equity": 31681.92, "return": 0.1710 },
+    { "date": "2026-04-17", "equity": 31422.31, "return": 0.1630 },
+    { "date": "2026-04-18", "equity": 32053.44, "return": 0.1840 },
+    { "date": "2026-04-19", "equity": 32685.20, "return": 0.2060 },
+    { "date": "2026-04-20", "equity": 33124.58, "return": 0.2190 },
+    { "date": "2026-04-21", "equity": 32981.14, "return": 0.2140 },
+    { "date": "2026-04-22", "equity": 33756.06, "return": 0.2420 },
+    { "date": "2026-04-23", "equity": 34381.87, "return": 0.2610 },
+    { "date": "2026-04-24", "equity": 34124.33, "return": 0.2520 },
+    { "date": "2026-04-25", "equity": 34810.62, "return": 0.2730 },
+    { "date": "2026-04-26", "equity": 35096.44, "return": 0.2810 },
+    { "date": "2026-04-27", "equity": 35241.82, "return": 0.2846 }
+  ],
+  "trades": [
+    { "time": "2026-04-27 09:12", "symbol": "BTCUSDT", "side": "long", "pnl": 284.32, "return": 0.0142, "status": "Closed" },
+    { "time": "2026-04-26 21:48", "symbol": "ETHUSDT", "side": "short", "pnl": -96.50, "return": -0.0061, "status": "Closed" },
+    { "time": "2026-04-26 14:26", "symbol": "SOLUSDT", "side": "long", "pnl": 143.76, "return": 0.0118, "status": "Closed" },
+    { "time": "2026-04-25 19:31", "symbol": "BTCUSDT", "side": "short", "pnl": 352.10, "return": 0.0189, "status": "Closed" },
+    { "time": "2026-04-25 10:05", "symbol": "BNBUSDT", "side": "long", "pnl": -58.42, "return": -0.0047, "status": "Closed" },
+    { "time": "2026-04-24 16:42", "symbol": "ETHUSDT", "side": "long", "pnl": 207.93, "return": 0.0131, "status": "Closed" }
+  ]
+}
