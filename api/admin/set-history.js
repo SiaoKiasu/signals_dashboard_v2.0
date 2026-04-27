@@ -57,12 +57,14 @@ module.exports = async (req, res) => {
           trades: Array.isArray(snapshot.trades) ? snapshot.trades.length : 0,
         };
       } catch (e) {
+        console.error("[binance-account-snapshot] refresh failed:", e);
         tasks.binance_account_snapshot = {
           ok: false,
           error: String(e && e.message ? e.message : e),
         };
       }
     } else {
+      console.error("[binance-account-snapshot] missing BINANCE_API_KEY or BINANCE_API_SECRET");
       tasks.binance_account_snapshot = { ok: true, skipped: "missing_binance_env" };
     }
     res.statusCode = 200;

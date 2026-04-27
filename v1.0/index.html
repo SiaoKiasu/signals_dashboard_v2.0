@@ -1536,42 +1536,21 @@
             });
         }
 
-        const DEFAULT_BINANCE_ACCOUNT_DATA = {
-            updated_at: '2026-04-27T08:00:00Z',
+        const EMPTY_BINANCE_ACCOUNT_DATA = {
+            updated_at: null,
             account: {
                 exchange: 'Binance',
                 account_name: 'Subaccount Perps',
                 equity_currency: 'USDT',
-                equity: 35241.82,
-                initial_capital: 27435.00,
-                total_return: 0.2846,
-                max_drawdown: -0.0817,
-                win_rate: 0.618,
-                trading_days: 127
+                equity: null,
+                initial_capital: null,
+                total_return: null,
+                max_drawdown: null,
+                win_rate: null,
+                trading_days: null
             },
-            equity_curve: [
-                { date: '2026-04-15', equity: 31240.15, return: 0.156 },
-                { date: '2026-04-16', equity: 31681.92, return: 0.171 },
-                { date: '2026-04-17', equity: 31422.31, return: 0.163 },
-                { date: '2026-04-18', equity: 32053.44, return: 0.184 },
-                { date: '2026-04-19', equity: 32685.2, return: 0.206 },
-                { date: '2026-04-20', equity: 33124.58, return: 0.219 },
-                { date: '2026-04-21', equity: 32981.14, return: 0.214 },
-                { date: '2026-04-22', equity: 33756.06, return: 0.242 },
-                { date: '2026-04-23', equity: 34381.87, return: 0.261 },
-                { date: '2026-04-24', equity: 34124.33, return: 0.252 },
-                { date: '2026-04-25', equity: 34810.62, return: 0.273 },
-                { date: '2026-04-26', equity: 35096.44, return: 0.281 },
-                { date: '2026-04-27', equity: 35241.82, return: 0.2846 }
-            ],
-            trades: [
-                { time: '2026-04-27 09:12', symbol: 'BTCUSDT', side: 'long', pnl: 284.32, return: 0.0142, status: 'Closed' },
-                { time: '2026-04-26 21:48', symbol: 'ETHUSDT', side: 'short', pnl: -96.5, return: -0.0061, status: 'Closed' },
-                { time: '2026-04-26 14:26', symbol: 'SOLUSDT', side: 'long', pnl: 143.76, return: 0.0118, status: 'Closed' },
-                { time: '2026-04-25 19:31', symbol: 'BTCUSDT', side: 'short', pnl: 352.1, return: 0.0189, status: 'Closed' },
-                { time: '2026-04-25 10:05', symbol: 'BNBUSDT', side: 'long', pnl: -58.42, return: -0.0047, status: 'Closed' },
-                { time: '2026-04-24 16:42', symbol: 'ETHUSDT', side: 'long', pnl: 207.93, return: 0.0131, status: 'Closed' }
-            ]
+            equity_curve: [],
+            trades: []
         };
 
         function pickLatest(values) {
@@ -1798,7 +1777,7 @@
         }
 
         function cloneBinanceSnapshotDefaults() {
-            return JSON.parse(JSON.stringify(DEFAULT_BINANCE_ACCOUNT_DATA));
+            return JSON.parse(JSON.stringify(EMPTY_BINANCE_ACCOUNT_DATA));
         }
 
         function mergeBinanceSnapshot(base, patch) {
@@ -1825,7 +1804,7 @@
                     nextSnapshot = mergeBinanceSnapshot(nextSnapshot, summaryPayload.accountCurves);
                 }
             } catch (e) {
-                console.warn('加载公开账户曲线失败', e);
+                console.error('加载公开账户曲线失败', e);
             }
             try {
                 const mePayload = authSnapshot && authSnapshot.authenticated ? authSnapshot : await fetchJson('/api/me');
@@ -1833,16 +1812,11 @@
                     nextSnapshot = mergeBinanceSnapshot(nextSnapshot, mePayload.account_snapshot);
                 }
             } catch (e) {
-                console.warn('加载账户详情失败', e);
+                console.error('加载账户详情失败', e);
             }
             if (!Array.isArray(nextSnapshot.equity_curve) || !nextSnapshot.equity_curve.length) {
-                try {
-                    const r = await fetch('/v1.0/binance_account.json', { credentials: 'same-origin', cache: 'no-store' });
-                    if (!r.ok) throw new Error(`account_${r.status}`);
-                    nextSnapshot = mergeBinanceSnapshot(nextSnapshot, await r.json());
-                } catch {
-                    nextSnapshot = cloneBinanceSnapshotDefaults();
-                }
+                console.error('未获取到真实 Binance 账户快照，当前面板将显示空数据');
+                nextSnapshot = cloneBinanceSnapshotDefaults();
             }
             binanceAccountCache = nextSnapshot;
             renderBinanceAccountDashboard();
