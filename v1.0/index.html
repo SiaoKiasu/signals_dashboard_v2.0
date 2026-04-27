@@ -940,9 +940,9 @@
                 status_trigger: '🟥 Trigger',
                 status_high_prob: '🟨 High Prob',
                 probability: 'Probability',
-                open_interest: 'Open Interest',
+                open_interest: 'BTC Perpetual Open Interest',
                 funding_rate: 'Funding Rate',
-                liquidation_24h: 'Liquidation (24h)',
+                liquidation_24h: 'Global Liquidation Volume',
                 etf_net_flow: 'ETF Net Flow',
                 exchange_balance: 'Exchange Balance',
                 fear_greed: 'Fear & Greed',
@@ -1047,9 +1047,9 @@
                 status_trigger: '🟥 触发',
                 status_high_prob: '🟨 高概率预警',
                 probability: '概率',
-                open_interest: '持仓量',
+                open_interest: 'BTC 永续持仓量',
                 funding_rate: '资金费率',
-                liquidation_24h: '爆仓 (24h)',
+                liquidation_24h: '全网爆仓量',
                 etf_net_flow: 'ETF 净流入',
                 exchange_balance: '交易所余额',
                 fear_greed: '恐慌指数',
@@ -1243,6 +1243,17 @@
             return Math.round(value || 0).toLocaleString();
         }
 
+        function formatCompactNumber(value, digits = 2) {
+            const n = Number(value);
+            if (!Number.isFinite(n)) return '-';
+            const v = Math.abs(n);
+            const d = Number.isFinite(digits) ? digits : 2;
+            if (v >= 1e9) return (n / 1e9).toFixed(d) + 'b';
+            if (v >= 1e6) return (n / 1e6).toFixed(d) + 'm';
+            if (v >= 1e3) return (n / 1e3).toFixed(d) + 'k';
+            return n.toFixed(d);
+        }
+
         function formatPrice(value) {
             if (!Number.isFinite(value)) return '-';
             return Math.round(value).toLocaleString();
@@ -1404,6 +1415,7 @@
             const sliced = sliceRecent(data.dates || [], [data.values || [], priceSeries || []]);
             const labelFunding = t('legend_funding');
             const labelPrice = t('legend_price');
+            const FUNDING_AXIS_LIMIT = 0.0003;
             const option = {
                 backgroundColor: 'transparent',
                 title: { text: t('funding_rate'), left: '6%', top: '6%', textStyle: { color: '#d1d4dc', fontSize: 12 } },
@@ -1449,11 +1461,35 @@
                     }
                 },
                 yAxis: [
-                    { type: 'value', scale: true, min: 'dataMin', max: 'dataMax', splitNumber: 5, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatPercent(v, 4) } },
+                    {
+                        type: 'value',
+                        scale: true,
+                        min: -FUNDING_AXIS_LIMIT,
+                        max: FUNDING_AXIS_LIMIT,
+                        splitNumber: 6,
+                        position: 'right',
+                        splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } },
+                        axisLabel: { color: '#787b86', formatter: (v) => formatPercent(v, 4) },
+                        axisLine: { show: false },
+                        axisTick: { show: false }
+                    },
                     { type: 'value', scale: true, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => formatPrice(v) } }
                 ],
                 series: [
-                    { name: labelFunding, type: 'line', data: sliced.series[0] || [], symbol: 'none', lineStyle: { color: '#f8cb46', width: 2 } },
+                    {
+                        name: labelFunding,
+                        type: 'line',
+                        data: sliced.series[0] || [],
+                        symbol: 'none',
+                        lineStyle: { color: '#f8cb46', width: 2 },
+                        markLine: {
+                            silent: true,
+                            symbol: ['none', 'none'],
+                            label: { show: false },
+                            lineStyle: { color: '#787b86', type: 'dashed', width: 1 },
+                            data: [{ yAxis: 0 }]
+                        }
+                    },
                     { name: labelPrice, type: 'line', data: sliced.series[1] || [], yAxisIndex: 1, symbol: 'none', lineStyle: { color: '#2962ff', width: 1.6 } }
                 ]
             };
@@ -1548,7 +1584,7 @@
                         if (!params || !params.length) return '';
                         const header = params[0].axisValue || '';
                         const rows = params.map(p => {
-                            const v = p.seriesName === t('legend_price') ? formatPrice(p.value) : formatNumber(p.value);
+                            const v = p.seriesName === t('legend_price') ? formatPrice(p.value) : formatCompactNumber(p.value, 2);
                             return `<div class="tooltip-row"><span class="tooltip-label">${p.seriesName}</span><span class="tooltip-value">${v}</span></div>`;
                         }).join('');
                         return `<div class="custom-tooltip"><div class="tooltip-header">${header}</div>${rows}</div>`;
@@ -1569,7 +1605,7 @@
                 grid: { left: '6%', right: '6%', bottom: '14%', top: '18%', containLabel: true },
                 xAxis: { type: 'category', data: sliced.dates, boundaryGap: false, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#787b86', hideOverlap: true } },
                 yAxis: [
-                    { type: 'value', scale: true, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatNumber(v) } },
+                    { type: 'value', scale: true, position: 'right', splitLine: { lineStyle: { color: '#2a2e39', type: 'dashed' } }, axisLabel: { color: '#787b86', formatter: (v) => formatCompactNumber(v, 2) } },
                     { type: 'value', scale: true, position: 'left', splitLine: { show: false }, axisLabel: { color: '#787b86', formatter: (v) => formatPrice(v) } }
                 ],
                 series: [
@@ -2240,7 +2276,7 @@
         let upgradeResolvedReferrer = null;
         let upgradeCanUseReferrer = true;
         async function createPaymentOrder(plan, network) {
-            const r = await fetch('/api/payments/create-order', {
+            const r = await fetch('/api/payments/config', {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 credentials: 'include',
@@ -2586,7 +2622,7 @@
                     </div>
                 `;
                 document.getElementById('logout-btn').onclick = async () => {
-                    await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+                    await fetch('/api/me', { method: 'POST', credentials: 'include' });
                     location.reload();
                 };
                 const toggle = document.getElementById('auth-menu-toggle');

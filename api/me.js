@@ -1,8 +1,32 @@
-const { parseCookies } = require("./_lib/cookies");
+const { parseCookies, serializeCookie } = require("./_lib/cookies");
 const { SESSION_COOKIE, verifySessionToken } = require("./_lib/session");
 const { getTier, getMemberRecord } = require("./_lib/tiers");
 
 module.exports = async (req, res) => {
+  if (req.method === "POST") {
+    res.setHeader(
+      "Set-Cookie",
+      serializeCookie(SESSION_COOKIE, "", {
+        httpOnly: true,
+        secure: true,
+        sameSite: "Lax",
+        path: "/",
+        maxAge: 0,
+      })
+    );
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+
+  if (req.method !== "GET") {
+    res.statusCode = 405;
+    res.setHeader("Allow", "GET, POST");
+    res.end("Method Not Allowed");
+    return;
+  }
+
   const sessionSecret = process.env.SESSION_SECRET;
   if (!sessionSecret) {
     res.statusCode = 500;

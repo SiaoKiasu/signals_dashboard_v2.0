@@ -1,7 +1,13 @@
+const crypto = require("crypto");
+const { parseCookies } = require("../_lib/cookies");
+const { SESSION_COOKIE, verifySessionToken } = require("../_lib/session");
 const { getMongoDb } = require("../_lib/mongo");
 
 const CONFIG_COLLECTION = process.env.MONGODB_CONFIG_COLLECTION || "config";
 const MEMBERS_COLLECTION = process.env.MONGODB_MEMBERS_COLLECTION || "members";
+const PAYMENT_ORDERS_COLLECTION = process.env.MONGODB_PAYMENT_ORDERS_COLLECTION || "payment_orders";
+const PAYMENT_ORDER_EXPIRE_MINUTES = Number(process.env.PAYMENT_ORDER_EXPIRE_MINUTES || 30);
+const SUPPORTED_NETWORKS = new Set(["ethereum", "bnb", "arbitrum"]);
 
 async function getPricingAndAddresses(db) {
   let pricing = null;
@@ -52,6 +58,25 @@ async function resolveReferrer(db, rawInput) {
   return byNote || null;
 }
 
+function createOrderToken() {
+  return crypto.randomBytes(24).toString("hex");
+}
+
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    req.on("data", (c) => (body += c));
+    req.on("end", () => {
+      try {
+        resolve(JSON.parse(body || "{}"));
+      } catch {
+        reject(new Error("invalid_json"));
+      }
+    });
+    req.on("error", reject);
+  });
+}
+
 module.exports = async (req, res) => {
   try {
     const db = await getMongoDb();
@@ -62,46 +87,101 @@ module.exports = async (req, res) => {
         res.end(JSON.stringify({ error: "missing_mongodb" }));
         return;
       }
-      let body = "";
-      req.on("data", (c) => (body += c));
-      req.on("end", async () => {
-        let obj;
-        try {
-          obj = JSON.parse(body || "{}");
-        } catch {
+      let obj;
+      try {
+        obj = await readJsonBody(req);
+      } catch {
+        res.statusCode = 400;
+        res.setHeader("Content-Type", "application/json; charset=utf-8");
+        res.end(JSON.stringify({ error: "invalid_json" }));
+        return;
+      }
+
+      const plan = String(obj.plan || "").trim();
+      const network = String(obj.network || "").trim();
+      if (plan || network) {
+        const sessionSecret = process.env.SESSION_SECRET;
+        if (!sessionSecret) {
+          res.statusCode = 500;
+          res.setHeader("Content-Type", "application/json; charset=utf-8");
+          res.end(JSON.stringify({ error: "missing_env", need: ["SESSION_SECRET"] }));
+          return;
+        }
+        const cookies = parseCookies(req);
+        const token = cookies[SESSION_COOKIE];
+        if (!token) {
+          res.statusCode = 401;
+          res.setHeader("Content-Type", "application/json; charset=utf-8");
+          res.end(JSON.stringify({ error: "unauthorized" }));
+          return;
+        }
+        const payload = verifySessionToken(token, sessionSecret);
+        if (!payload || !payload.discord_user_id) {
+          res.statusCode = 401;
+          res.setHeader("Content-Type", "application/json; charset=utf-8");
+          res.end(JSON.stringify({ error: "unauthorized" }));
+          return;
+        }
+        if (plan !== "pro" && plan !== "ultra") {
           res.statusCode = 400;
           res.setHeader("Content-Type", "application/json; charset=utf-8");
-          res.end(JSON.stringify({ error: "invalid_json" }));
+          res.end(JSON.stringify({ error: "invalid_plan" }));
           return;
         }
-        const query = String(obj.referrer || "").trim();
-        if (!query) {
-          res.statusCode = 200;
+        if (!SUPPORTED_NETWORKS.has(network)) {
+          res.statusCode = 400;
           res.setHeader("Content-Type", "application/json; charset=utf-8");
-          res.end(JSON.stringify({ ok: true, valid: false, error: "missing_referrer" }));
+          res.end(JSON.stringify({ error: "unsupported_network" }));
           return;
         }
-        const member = await resolveReferrer(db, query);
-        if (!member) {
-          res.statusCode = 200;
-          res.setHeader("Content-Type", "application/json; charset=utf-8");
-          res.end(JSON.stringify({ ok: true, valid: false, error: "referrer_not_found" }));
-          return;
-        }
+
+        const now = Date.now();
+        const expMs = now + Math.max(5, Math.floor(PAYMENT_ORDER_EXPIRE_MINUTES)) * 60 * 1000;
+        const expiresAt = new Date(expMs).toISOString();
+        const orderToken = createOrderToken();
+        await db.collection(PAYMENT_ORDERS_COLLECTION).insertOne({
+          _id: orderToken,
+          discord_user_id: String(payload.discord_user_id),
+          plan,
+          network,
+          status: "issued",
+          created_at: new Date(now).toISOString(),
+          expires_at: expiresAt,
+        });
+
         res.statusCode = 200;
         res.setHeader("Content-Type", "application/json; charset=utf-8");
-        res.end(
-          JSON.stringify({
-            ok: true,
-            valid: true,
-            referrer: {
-              discord_user_id: String(member._id || member.discord_user_id || ""),
-              note: member.note || null,
-              tier: member.tier || "basic",
-            },
-          })
-        );
-      });
+        res.end(JSON.stringify({ ok: true, order_token: orderToken, expires_at: expiresAt }));
+        return;
+      }
+
+      const query = String(obj.referrer || "").trim();
+      if (!query) {
+        res.statusCode = 200;
+        res.setHeader("Content-Type", "application/json; charset=utf-8");
+        res.end(JSON.stringify({ ok: true, valid: false, error: "missing_referrer" }));
+        return;
+      }
+      const member = await resolveReferrer(db, query);
+      if (!member) {
+        res.statusCode = 200;
+        res.setHeader("Content-Type", "application/json; charset=utf-8");
+        res.end(JSON.stringify({ ok: true, valid: false, error: "referrer_not_found" }));
+        return;
+      }
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.end(
+        JSON.stringify({
+          ok: true,
+          valid: true,
+          referrer: {
+            discord_user_id: String(member._id || member.discord_user_id || ""),
+            note: member.note || null,
+            tier: member.tier || "basic",
+          },
+        })
+      );
       return;
     }
 
