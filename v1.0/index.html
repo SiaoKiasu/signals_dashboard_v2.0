@@ -475,18 +475,18 @@
             display: grid;
             grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
             grid-template-areas:
-                "equity overview"
-                "returns history";
+                "overview equity"
+                "history returns";
             gap: 12px;
         }
         @media (max-width: 1100px) {
             .account-grid {
                 grid-template-columns: 1fr;
                 grid-template-areas:
-                    "equity"
-                    "returns"
                     "overview"
-                    "history";
+                    "history"
+                    "equity"
+                    "returns";
             }
         }
         .account-panel {
@@ -1192,7 +1192,7 @@
                 header_sub: '专业 · 诚信 · 探索 · 成长',
                 market_title: '市场概览',
                 market_sub: '实时数据',
-                account_title: 'Binance 账户看板（模板，非真实数据）',
+                account_title: '账户看板（模板，非真实数据）',
                 account_sub: '账户表现总览',
                 account_caption: '合约账户表现快照',
                 account_updated: '更新时间：{time}',
