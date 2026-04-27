@@ -38,6 +38,8 @@ async function run() {
             docs: [EQUITY_DOC_ID, RETURN_DOC_ID, TRADE_DOC_ID],
           },
           summary: {
+            start_date: result && result.start_date ? result.start_date : null,
+            first_income_date: result && result.first_income_date ? result.first_income_date : null,
             updated_at: snapshot && snapshot.updated_at ? snapshot.updated_at : null,
             equity: account && account.equity != null ? account.equity : null,
             initial_capital: account && account.initial_capital != null ? account.initial_capital : null,

@@ -508,8 +508,16 @@
             display: flex;
             flex-direction: column;
         }
-        .account-panel-overview { grid-area: overview; padding: 16px; overflow: auto; }
+        .account-panel-overview {
+            grid-area: overview;
+            padding: 16px;
+            overflow: auto;
+            align-items: center;
+        }
         .account-panel-history { grid-area: history; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+        .account-panel-overview > * {
+            width: min(100%, 440px);
+        }
         .account-head {
             display: flex;
             align-items: flex-start;
@@ -532,9 +540,10 @@
         }
         .account-name {
             color: #fff;
-            font-size: 18px;
-            font-weight: 800;
-            margin-top: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            margin-top: 10px;
         }
         .account-caption {
             color: #9aa3b2;
@@ -550,7 +559,7 @@
             border-radius: 12px;
             border: 1px solid rgba(255,255,255,0.06);
             background: rgba(7, 10, 16, 0.45);
-            padding: 12px;
+            padding: 11px;
         }
         .account-kpi .label {
             color: #8f98a8;
@@ -1193,9 +1202,9 @@
                 header_sub: '专业 · 诚信 · 探索 · 成长',
                 market_title: '市场概览',
                 market_sub: '实时数据',
-                account_title: '账户看板（模板，非真实数据）',
+                account_title: '账户看板',
                 account_sub: '账户表现总览',
-                account_caption: '永续合约子账户表现快照',
+                account_caption: '合约子账户3表现快照',
                 account_history_title: '交易记录',
                 account_history_sub: '最近平仓记录',
                 account_equity_curve: 'Equity 曲线',
