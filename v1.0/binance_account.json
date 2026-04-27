@@ -9,8 +9,7 @@
     "max_drawdown": -0.0817,
     "win_rate": 0.618,
     "trading_days": 127,
-    "margin_used": 12643.2,
-    "margin_available": 22598.62
+    "avg_leverage": 3.84
   },
   "equity_curve": [
     { "date": "2026-04-15", "equity": 31240.15, "return": 0.1560 },

@@ -1073,8 +1073,7 @@
                 account_drawdown: 'Max Drawdown',
                 account_win_rate: 'Win Rate',
                 account_trading_days: 'Trading Days',
-                account_margin_used: 'Used Margin',
-                account_margin_available: 'Available Margin',
+                account_avg_leverage: 'Average Leverage',
                 account_symbol: 'Symbol',
                 account_side: 'Side',
                 account_pnl: 'PnL',
@@ -1193,7 +1192,7 @@
                 header_sub: '专业 · 诚信 · 探索 · 成长',
                 market_title: '市场概览',
                 market_sub: '实时数据',
-                account_title: 'Binance 账户看板',
+                account_title: 'Binance 账户看板（模板，非真实数据）',
                 account_sub: '账户表现总览',
                 account_caption: '合约账户表现快照',
                 account_updated: '更新时间：{time}',
@@ -1206,8 +1205,7 @@
                 account_drawdown: '最大回撤',
                 account_win_rate: '胜率',
                 account_trading_days: '交易天数',
-                account_margin_used: '已用保证金',
-                account_margin_available: '可用保证金',
+                account_avg_leverage: '持仓平均杠杆率',
                 account_symbol: '交易对',
                 account_side: '方向',
                 account_pnl: '盈亏',
@@ -1548,8 +1546,7 @@
                 max_drawdown: -0.0817,
                 win_rate: 0.618,
                 trading_days: 127,
-                margin_used: 12643.2,
-                margin_available: 22598.62
+                avg_leverage: 3.84
             },
             equity_curve: [
                 { date: '2026-04-15', equity: 31240.15, return: 0.156 },
@@ -1671,8 +1668,7 @@
                 { label: t('account_drawdown'), value: formatSignedPercent(account.max_drawdown, 2), className: Number(account.max_drawdown) >= 0 ? 'positive' : 'negative' },
                 { label: t('account_win_rate'), value: formatPercent(account.win_rate, 1) },
                 { label: t('account_trading_days'), value: Number.isFinite(Number(account.trading_days)) ? String(account.trading_days) : '-', sub: t('account_days_unit') },
-                { label: t('account_margin_used'), value: formatUsdValue(account.margin_used) },
-                { label: t('account_margin_available'), value: formatUsdValue(account.margin_available) }
+                { label: t('account_avg_leverage'), value: Number.isFinite(Number(account.avg_leverage)) ? `${Number(account.avg_leverage).toFixed(2)}x` : '-' }
             ];
             kpisEl.innerHTML = cards.map(item => `
                 <div class="account-kpi">
