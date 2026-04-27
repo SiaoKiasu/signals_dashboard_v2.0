@@ -1797,14 +1797,54 @@
             renderBinanceReturnChart(binanceAccountCache);
         }
 
-        async function loadBinanceAccountDashboard() {
-            try {
-                const r = await fetch('/v1.0/binance_account.json', { credentials: 'same-origin', cache: 'no-store' });
-                if (!r.ok) throw new Error(`account_${r.status}`);
-                binanceAccountCache = await r.json();
-            } catch {
-                binanceAccountCache = DEFAULT_BINANCE_ACCOUNT_DATA;
+        function cloneBinanceSnapshotDefaults() {
+            return JSON.parse(JSON.stringify(DEFAULT_BINANCE_ACCOUNT_DATA));
+        }
+
+        function mergeBinanceSnapshot(base, patch) {
+            const out = base ? JSON.parse(JSON.stringify(base)) : cloneBinanceSnapshotDefaults();
+            if (!patch || typeof patch !== 'object') return out;
+            if (patch.updated_at) out.updated_at = patch.updated_at;
+            if (patch.account && typeof patch.account === 'object') {
+                out.account = { ...(out.account || {}), ...patch.account };
             }
+            if (Array.isArray(patch.equity_curve)) {
+                out.equity_curve = patch.equity_curve.slice();
+            }
+            if (Array.isArray(patch.trades)) {
+                out.trades = patch.trades.slice();
+            }
+            return out;
+        }
+
+        async function loadBinanceAccountDashboard() {
+            let nextSnapshot = cloneBinanceSnapshotDefaults();
+            try {
+                const summaryPayload = marketPayloadCache || await fetchJson('/api/market/summary');
+                if (summaryPayload && summaryPayload.accountCurves) {
+                    nextSnapshot = mergeBinanceSnapshot(nextSnapshot, summaryPayload.accountCurves);
+                }
+            } catch (e) {
+                console.warn('加载公开账户曲线失败', e);
+            }
+            try {
+                const mePayload = authSnapshot && authSnapshot.authenticated ? authSnapshot : await fetchJson('/api/me');
+                if (mePayload && mePayload.account_snapshot) {
+                    nextSnapshot = mergeBinanceSnapshot(nextSnapshot, mePayload.account_snapshot);
+                }
+            } catch (e) {
+                console.warn('加载账户详情失败', e);
+            }
+            if (!Array.isArray(nextSnapshot.equity_curve) || !nextSnapshot.equity_curve.length) {
+                try {
+                    const r = await fetch('/v1.0/binance_account.json', { credentials: 'same-origin', cache: 'no-store' });
+                    if (!r.ok) throw new Error(`account_${r.status}`);
+                    nextSnapshot = mergeBinanceSnapshot(nextSnapshot, await r.json());
+                } catch {
+                    nextSnapshot = cloneBinanceSnapshotDefaults();
+                }
+            }
+            binanceAccountCache = nextSnapshot;
             renderBinanceAccountDashboard();
         }
 
@@ -2176,6 +2216,10 @@
                     renderEtfChart(etf, etfSymbol);
                     renderExchangeBalanceChart(exb);
                     renderFearGreedChart(fear);
+                }
+                if (payload.accountCurves) {
+                    binanceAccountCache = mergeBinanceSnapshot(binanceAccountCache || cloneBinanceSnapshotDefaults(), payload.accountCurves);
+                    renderBinanceAccountDashboard();
                 }
                 if (payload.prices) updateMarketCards(payload.prices);
                 updateMarketMetrics(payload);

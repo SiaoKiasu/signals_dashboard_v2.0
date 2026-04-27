@@ -1,6 +1,8 @@
 const { parseCookies, serializeCookie } = require("./_lib/cookies");
 const { SESSION_COOKIE, verifySessionToken } = require("./_lib/session");
 const { getTier, getMemberRecord } = require("./_lib/tiers");
+const { getMongoDb } = require("./_lib/mongo");
+const { readBinanceAccountSnapshot, getTieredBinanceAccountSnapshot } = require("../lib/binanceAccount");
 
 module.exports = async (req, res) => {
   if (req.method === "POST") {
@@ -47,6 +49,9 @@ module.exports = async (req, res) => {
 
   const tier = await getTier(payload.discord_user_id);
   const member = await getMemberRecord(payload.discord_user_id);
+  const db = await getMongoDb();
+  const accountSnapshot = db ? await readBinanceAccountSnapshot(db) : null;
+  const tieredAccountSnapshot = getTieredBinanceAccountSnapshot(accountSnapshot, tier);
   const paymentHistoryCount = member && Array.isArray(member.payment_history) ? member.payment_history.length : 0;
   res.statusCode = 200;
   res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -57,6 +62,7 @@ module.exports = async (req, res) => {
       note: member && member.note ? member.note : null,
       can_use_referral: paymentHistoryCount === 0,
       tier,
+      account_snapshot: tieredAccountSnapshot,
       membership: member
         ? {
             tier: member.tier || "basic",

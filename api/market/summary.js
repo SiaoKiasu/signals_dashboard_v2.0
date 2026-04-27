@@ -1,4 +1,6 @@
 const { sendJson, requireApiKey, toDateKey, fetchJson } = require("../../lib/market");
+const { getMongoDb } = require("../_lib/mongo");
+const { readBinanceAccountSnapshot, getPublicBinanceAccountSnapshot } = require("../../lib/binanceAccount");
 
 const ETF_SYMBOLS = {
   BTC: "https://open-api-v4.coinglass.com/api/etf/bitcoin/flow-history",
@@ -251,6 +253,13 @@ async function getBtcDominance(key) {
   return { value: latest, time: latestTime };
 }
 
+async function getPublicAccountCurves() {
+  const db = await getMongoDb();
+  if (!db) return null;
+  const snapshot = await readBinanceAccountSnapshot(db);
+  return getPublicBinanceAccountSnapshot(snapshot);
+}
+
 module.exports = async (req, res) => {
   try {
     const key = requireApiKey();
@@ -275,6 +284,7 @@ module.exports = async (req, res) => {
       getExchangeBalance(key),
       getFearGreed(key),
       getBtcDominance(key),
+      getPublicAccountCurves(),
     ]);
 
     const [
@@ -287,6 +297,7 @@ module.exports = async (req, res) => {
       exchangeBalanceRes,
       fearGreedRes,
       btcDominanceRes,
+      accountCurvesRes,
     ] = results;
 
     const prices = pricesRes.status === "fulfilled" ? pricesRes.value : { btc: null, eth: null, doge: null };
@@ -301,8 +312,20 @@ module.exports = async (req, res) => {
     const fearGreed = fearGreedRes.status === "fulfilled" ? fearGreedRes.value : { value: null, time: null };
     const btcDominance =
       btcDominanceRes.status === "fulfilled" ? btcDominanceRes.value : { value: null, time: null };
+    const accountCurves = accountCurvesRes.status === "fulfilled" ? accountCurvesRes.value : null;
 
-    sendJson(res, 200, { prices, premium, oi, funding, liquidation, etf, exchangeBalance, fearGreed, btcDominance });
+    sendJson(res, 200, {
+      prices,
+      premium,
+      oi,
+      funding,
+      liquidation,
+      etf,
+      exchangeBalance,
+      fearGreed,
+      btcDominance,
+      accountCurves,
+    });
   } catch (e) {
     sendJson(res, 500, { error: "market_summary_failed", detail: String(e && e.message ? e.message : e) });
   }

@@ -1,5 +1,6 @@
 const { getMongoDb } = require("../_lib/mongo");
 const { syncDiscordRolesForAllMembers, isSyncEnabled } = require("../_lib/discordRoles");
+const { hasBinanceAccountConfig, fetchAndStoreBinanceAccountSnapshot } = require("../../lib/binanceAccount");
 
 const HISTORY_COLLECTION = process.env.MONGODB_HISTORY_COLLECTION || "portal_data";
 const HISTORY_DOC_ID = process.env.MONGODB_HISTORY_DOC_ID || "signal_history";
@@ -39,16 +40,34 @@ module.exports = async (req, res) => {
       res.end(JSON.stringify({ error: "forbidden" }));
       return;
     }
+    const tasks = {};
     if (!isSyncEnabled()) {
-      res.statusCode = 200;
-      res.setHeader("Content-Type", "application/json; charset=utf-8");
-      res.end(JSON.stringify({ ok: true, skipped: "sync_disabled" }));
-      return;
+      tasks.discord_role_sync = { ok: true, skipped: "sync_disabled" };
+    } else {
+      const stats = await syncDiscordRolesForAllMembers(db, 0);
+      tasks.discord_role_sync = { ok: true, stats };
     }
-    const stats = await syncDiscordRolesForAllMembers(db, 0);
+    if (hasBinanceAccountConfig()) {
+      try {
+        const snapshot = await fetchAndStoreBinanceAccountSnapshot(db);
+        tasks.binance_account_snapshot = {
+          ok: true,
+          updated_at: snapshot.updated_at || null,
+          curve_points: Array.isArray(snapshot.equity_curve) ? snapshot.equity_curve.length : 0,
+          trades: Array.isArray(snapshot.trades) ? snapshot.trades.length : 0,
+        };
+      } catch (e) {
+        tasks.binance_account_snapshot = {
+          ok: false,
+          error: String(e && e.message ? e.message : e),
+        };
+      }
+    } else {
+      tasks.binance_account_snapshot = { ok: true, skipped: "missing_binance_env" };
+    }
     res.statusCode = 200;
     res.setHeader("Content-Type", "application/json; charset=utf-8");
-    res.end(JSON.stringify({ ok: true, task: "sync_discord_roles", stats }));
+    res.end(JSON.stringify({ ok: true, task: "maintenance", tasks }));
     return;
   }
 
