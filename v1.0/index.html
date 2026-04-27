@@ -594,7 +594,7 @@
         .account-table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 760px;
+            min-width: 980px;
         }
         .account-table th,
         .account-table td {
@@ -1089,6 +1089,8 @@
                 account_trade_return: 'Return',
                 account_open_time: 'Open Time',
                 account_close_time: 'Close Time',
+                account_open_avg_price: 'Avg Open',
+                account_close_avg_price: 'Avg Close',
                 account_status: 'Status',
                 account_days_unit: 'days',
                 account_side_long: 'LONG',
@@ -1221,6 +1223,8 @@
                 account_trade_return: '收益率',
                 account_open_time: '开仓时间',
                 account_close_time: '平仓时间',
+                account_open_avg_price: '开仓均价',
+                account_close_avg_price: '平仓均价',
                 account_status: '状态',
                 account_days_unit: '天',
                 account_side_long: '多',
@@ -1682,6 +1686,8 @@
                         <tr>
                             <th>${t('account_open_time')}</th>
                             <th>${t('account_close_time')}</th>
+                            <th>${t('account_open_avg_price')}</th>
+                            <th>${t('account_close_avg_price')}</th>
                             <th>${t('account_symbol')}</th>
                             <th>${t('account_side')}</th>
                             <th>${t('account_pnl')}</th>
@@ -1694,10 +1700,14 @@
                             const side = String(item.side || '').toLowerCase();
                             const pnl = Number(item.pnl);
                             const ret = Number(item.return);
+                            const openAvg = Number(item.open_avg_price);
+                            const closeAvg = Number(item.close_avg_price);
                             return `
                                 <tr>
                                     <td>${item.open_time || '-'}</td>
                                     <td>${item.close_time || '-'}</td>
+                                    <td>${Number.isFinite(openAvg) ? formatPrice(openAvg) : '-'}</td>
+                                    <td>${Number.isFinite(closeAvg) ? formatPrice(closeAvg) : '-'}</td>
                                     <td>${item.symbol || '-'}</td>
                                     <td><span class="account-side ${side === 'short' ? 'short' : 'long'}">${side === 'short' ? t('account_side_short') : t('account_side_long')}</span></td>
                                     <td style="color:${Number.isFinite(pnl) && pnl >= 0 ? '#26a69a' : '#f23645'};">${Number.isFinite(pnl) ? formatUsdValue(pnl) : '-'}</td>
