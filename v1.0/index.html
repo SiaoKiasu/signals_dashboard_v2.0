@@ -594,7 +594,7 @@
         .account-table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 980px;
+            min-width: 1080px;
         }
         .account-table th,
         .account-table td {
@@ -1092,6 +1092,7 @@
                 account_close_time: 'Close Time',
                 account_open_avg_price: 'Avg Open',
                 account_close_avg_price: 'Avg Close',
+                account_leverage: 'Leverage',
                 account_status: 'Status',
                 account_days_unit: 'days',
                 account_side_long: 'LONG',
@@ -1227,6 +1228,7 @@
                 account_close_time: '平仓时间',
                 account_open_avg_price: '开仓均价',
                 account_close_avg_price: '平仓均价',
+                account_leverage: '实际杠杆率',
                 account_status: '状态',
                 account_days_unit: '天',
                 account_side_long: '多',
@@ -1547,6 +1549,15 @@
             });
         }
 
+        function formatTradeLeverage(value) {
+            const n = Number(value);
+            if (!Number.isFinite(n)) return '-';
+            return `${n.toLocaleString(undefined, {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2,
+            })}x`;
+        }
+
         function formatPercent(value, digits) {
             if (!Number.isFinite(value)) return '-';
             const d = Number.isFinite(digits) ? digits : 2;
@@ -1721,6 +1732,7 @@
                             <th>${t('account_qty')}</th>
                             <th>${t('account_symbol')}</th>
                             <th>${t('account_side')}</th>
+                            <th>${t('account_leverage')}</th>
                             <th>${t('account_pnl')}</th>
                             <th>${t('account_trade_return')}</th>
                             <th>${t('account_status')}</th>
@@ -1734,6 +1746,7 @@
                             const openAvg = item.open_avg_price == null ? null : Number(item.open_avg_price);
                             const closeAvg = item.close_avg_price == null ? null : Number(item.close_avg_price);
                             const qty = item.qty == null ? null : Number(item.qty);
+                            const leverage = item.leverage == null ? null : Number(item.leverage);
                             const closedQty = item.closed_qty == null ? null : Number(item.closed_qty);
                             const hasClose = Number.isFinite(closedQty) ? closedQty > 0 : !!(item.close_time && item.close_time !== '-');
                             const priceRef = Math.max(
@@ -1749,6 +1762,7 @@
                                     <td>${Number.isFinite(qty) ? formatTradeQuantity(qty) : '-'}</td>
                                     <td>${item.symbol || '-'}</td>
                                     <td><span class="account-side ${side === 'short' ? 'short' : 'long'}">${side === 'short' ? t('account_side_short') : t('account_side_long')}</span></td>
+                                    <td>${Number.isFinite(leverage) ? formatTradeLeverage(leverage) : '-'}</td>
                                     <td style="color:${hasClose && Number.isFinite(pnl) && pnl >= 0 ? '#26a69a' : '#f23645'};">${hasClose && Number.isFinite(pnl) ? formatUsdValue(pnl) : '-'}</td>
                                     <td style="color:${hasClose && Number.isFinite(ret) && ret >= 0 ? '#26a69a' : '#f23645'};">${hasClose && Number.isFinite(ret) ? formatSignedPercent(ret, 2) : '-'}</td>
                                     <td>${item.status || t('account_closed')}</td>
