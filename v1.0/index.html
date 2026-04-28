@@ -1746,10 +1746,10 @@
                 <table class="account-table">
                     <thead>
                         <tr>
-                            <th>${t('account_symbol')}</th>
-                            <th>${t('account_side')}</th>
                             <th>${t('account_open_time')}</th>
                             <th>${t('account_close_time')}</th>
+                            <th>${t('account_symbol')}</th>
+                            <th>${t('account_side')}</th>
                             <th>${t('account_open_avg_price')}</th>
                             <th>${t('account_close_avg_price')}</th>
                             <th>${t('account_qty')}</th>
@@ -1776,10 +1776,10 @@
                             );
                             return `
                                 <tr>
-                                    <td>${item.symbol || '-'}</td>
-                                    <td><span class="account-side ${side === 'short' ? 'short' : 'long'}">${side === 'short' ? t('account_side_short') : t('account_side_long')}</span></td>
                                     <td>${item.open_time || '-'}</td>
                                     <td>${item.close_time || '-'}</td>
+                                    <td>${item.symbol || '-'}</td>
+                                    <td><span class="account-side ${side === 'short' ? 'short' : 'long'}">${side === 'short' ? t('account_side_short') : t('account_side_long')}</span></td>
                                     <td>${Number.isFinite(openAvg) ? formatTradeAveragePrice(openAvg, priceRef) : '-'}</td>
                                     <td>${hasClose && Number.isFinite(closeAvg) ? formatTradeAveragePrice(closeAvg, priceRef) : '-'}</td>
                                     <td>${Number.isFinite(qty) ? formatTradeQuantity(qty) : '-'}</td>
