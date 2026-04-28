@@ -1579,6 +1579,20 @@
             })}x`;
         }
 
+        function formatBeijingTradeTime(timestamp, fallback = '-') {
+            const ms = Number(timestamp);
+            if (!Number.isFinite(ms)) return fallback || '-';
+            return new Date(ms).toLocaleString(currentLang === 'zh' ? 'zh-CN' : 'en-US', {
+                timeZone: 'Asia/Shanghai',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+            }).replace(',', '');
+        }
+
         function formatPercent(value, digits) {
             if (!Number.isFinite(value)) return '-';
             const d = Number.isFinite(digits) ? digits : 2;
@@ -1764,6 +1778,8 @@
                             const side = String(item.side || '').toLowerCase();
                             const pnl = Number(item.pnl);
                             const ret = Number(item.return);
+                            const openTime = formatBeijingTradeTime(item.open_timestamp, item.open_time || '-');
+                            const closeTime = formatBeijingTradeTime(item.close_timestamp, item.close_time || '-');
                             const openAvg = item.open_avg_price == null ? null : Number(item.open_avg_price);
                             const closeAvg = item.close_avg_price == null ? null : Number(item.close_avg_price);
                             const qty = item.qty == null ? null : Number(item.qty);
@@ -1776,8 +1792,8 @@
                             );
                             return `
                                 <tr>
-                                    <td>${item.open_time || '-'}</td>
-                                    <td>${item.close_time || '-'}</td>
+                                    <td>${openTime}</td>
+                                    <td>${closeTime}</td>
                                     <td>${item.symbol || '-'}</td>
                                     <td><span class="account-side ${side === 'short' ? 'short' : 'long'}">${side === 'short' ? t('account_side_short') : t('account_side_long')}</span></td>
                                     <td>${Number.isFinite(openAvg) ? formatTradeAveragePrice(openAvg, priceRef) : '-'}</td>

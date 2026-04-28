@@ -5,6 +5,7 @@ v1.0/signals_notification.py
 v1.0/place_orders.py
 v1.0/discord_notification.ipynb
 v1.0/update_signals.py
+v1.0/release_notes_bot.py
 v1.0/fetch_funding_history.py
 v1.0/fetch_oi_history.py
 v1.0/fetch_etf_flow_history.py
