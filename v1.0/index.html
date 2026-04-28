@@ -1083,6 +1083,7 @@
                 account_drawdown: 'Max Drawdown',
                 account_win_rate: 'Win Rate',
                 account_trading_days: 'Trading Days',
+                account_qty: 'Qty',
                 account_symbol: 'Symbol',
                 account_side: 'Side',
                 account_pnl: 'PnL',
@@ -1217,6 +1218,7 @@
                 account_drawdown: '最大回撤',
                 account_win_rate: '胜率',
                 account_trading_days: '交易天数',
+                account_qty: '数量',
                 account_symbol: '交易对',
                 account_side: '方向',
                 account_pnl: '盈亏',
@@ -1536,6 +1538,15 @@
             });
         }
 
+        function formatTradeQuantity(value) {
+            const n = Number(value);
+            if (!Number.isFinite(n)) return '-';
+            return n.toLocaleString(undefined, {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2,
+            });
+        }
+
         function formatPercent(value, digits) {
             if (!Number.isFinite(value)) return '-';
             const d = Number.isFinite(digits) ? digits : 2;
@@ -1707,6 +1718,7 @@
                             <th>${t('account_close_time')}</th>
                             <th>${t('account_open_avg_price')}</th>
                             <th>${t('account_close_avg_price')}</th>
+                            <th>${t('account_qty')}</th>
                             <th>${t('account_symbol')}</th>
                             <th>${t('account_side')}</th>
                             <th>${t('account_pnl')}</th>
@@ -1721,6 +1733,7 @@
                             const ret = Number(item.return);
                             const openAvg = item.open_avg_price == null ? null : Number(item.open_avg_price);
                             const closeAvg = item.close_avg_price == null ? null : Number(item.close_avg_price);
+                            const qty = item.qty == null ? null : Number(item.qty);
                             const closedQty = item.closed_qty == null ? null : Number(item.closed_qty);
                             const hasClose = Number.isFinite(closedQty) ? closedQty > 0 : !!(item.close_time && item.close_time !== '-');
                             const priceRef = Math.max(
@@ -1733,6 +1746,7 @@
                                     <td>${item.close_time || '-'}</td>
                                     <td>${Number.isFinite(openAvg) ? formatTradeAveragePrice(openAvg, priceRef) : '-'}</td>
                                     <td>${hasClose && Number.isFinite(closeAvg) ? formatTradeAveragePrice(closeAvg, priceRef) : '-'}</td>
+                                    <td>${Number.isFinite(qty) ? formatTradeQuantity(qty) : '-'}</td>
                                     <td>${item.symbol || '-'}</td>
                                     <td><span class="account-side ${side === 'short' ? 'short' : 'long'}">${side === 'short' ? t('account_side_short') : t('account_side_long')}</span></td>
                                     <td style="color:${hasClose && Number.isFinite(pnl) && pnl >= 0 ? '#26a69a' : '#f23645'};">${hasClose && Number.isFinite(pnl) ? formatUsdValue(pnl) : '-'}</td>
