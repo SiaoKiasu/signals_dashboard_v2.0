@@ -1746,13 +1746,13 @@
                 <table class="account-table">
                     <thead>
                         <tr>
+                            <th>${t('account_symbol')}</th>
+                            <th>${t('account_side')}</th>
                             <th>${t('account_open_time')}</th>
                             <th>${t('account_close_time')}</th>
                             <th>${t('account_open_avg_price')}</th>
                             <th>${t('account_close_avg_price')}</th>
                             <th>${t('account_qty')}</th>
-                            <th>${t('account_symbol')}</th>
-                            <th>${t('account_side')}</th>
                             <th>${t('account_leverage')}</th>
                             <th>${t('account_pnl')}</th>
                             <th>${t('account_trade_return')}</th>
@@ -1776,13 +1776,13 @@
                             );
                             return `
                                 <tr>
+                                    <td>${item.symbol || '-'}</td>
+                                    <td><span class="account-side ${side === 'short' ? 'short' : 'long'}">${side === 'short' ? t('account_side_short') : t('account_side_long')}</span></td>
                                     <td>${item.open_time || '-'}</td>
                                     <td>${item.close_time || '-'}</td>
                                     <td>${Number.isFinite(openAvg) ? formatTradeAveragePrice(openAvg, priceRef) : '-'}</td>
                                     <td>${hasClose && Number.isFinite(closeAvg) ? formatTradeAveragePrice(closeAvg, priceRef) : '-'}</td>
                                     <td>${Number.isFinite(qty) ? formatTradeQuantity(qty) : '-'}</td>
-                                    <td>${item.symbol || '-'}</td>
-                                    <td><span class="account-side ${side === 'short' ? 'short' : 'long'}">${side === 'short' ? t('account_side_short') : t('account_side_long')}</span></td>
                                     <td>${Number.isFinite(leverage) ? formatTradeLeverage(leverage) : '-'}</td>
                                     <td style="color:${hasClose && Number.isFinite(pnl) && pnl >= 0 ? '#26a69a' : '#f23645'};">${hasClose && Number.isFinite(pnl) ? formatUsdValue(pnl) : '-'}</td>
                                     <td style="color:${hasClose && Number.isFinite(ret) && ret >= 0 ? '#26a69a' : '#f23645'};">${hasClose && Number.isFinite(ret) ? formatSignedPercent(ret, 2) : '-'}</td>
